@@ -79,6 +79,74 @@ video.srcObject = stream;
 
 ---
 
+## フェーズ2': 動画ファイル対応（デバッグ効率化）
+
+**目的**: カメラを毎回起動せず、同じ条件で繰り返しテストできるようにする
+
+### タスク
+- [ ] 動画ソース選択UIの追加
+- [ ] ファイル選択機能の実装
+- [ ] test-data/sample-face.mp4 の直接読み込み機能
+- [ ] videoエレメントへの動画セット
+
+### 実装内容
+```typescript
+// HTML追加
+<select id="video-source">
+  <option value="camera">カメラ</option>
+  <option value="file">動画ファイル選択</option>
+  <option value="test-data">テストデータ (test-data/sample-face.mp4)</option>
+</select>
+<input type="file" id="video-file-input" accept="video/*" style="display:none" />
+
+// TypeScript実装
+async function startVideoSource() {
+  const source = videoSourceSelect.value;
+
+  if (source === 'camera') {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: 1280, height: 720 }
+    });
+    video.srcObject = stream;
+  } else if (source === 'file') {
+    videoFileInput.style.display = 'block';
+    videoFileInput.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        video.src = URL.createObjectURL(file);
+        video.loop = true; // デバッグ用にループ再生
+        video.play();
+      }
+    };
+    videoFileInput.click();
+  } else if (source === 'test-data') {
+    video.src = './test-data/sample-face.mp4';
+    video.loop = true;
+    video.play();
+  }
+}
+```
+
+### 期待される結果
+- カメラ、ファイル選択、テストデータの3つから選択可能
+- 動画ファイルが正常に再生される
+- ループ再生で連続テストが可能
+
+### デバッグポイント
+- 動画ファイルのコーデック互換性（H.264推奨）
+- ファイルパスの解決（Viteのpublic/ディレクトリまたは相対パス）
+- 動画の自動再生ポリシー（ユーザーインタラクション後に再生）
+
+### メリット
+- ✅ 開発イテレーションが高速化
+- ✅ 再現性の高いテスト
+- ✅ カメラ権限を毎回取得する必要がない
+- ✅ 同じ映像で値を検証できる
+
+**注意**: test-data/フォルダには各自で顔が映った動画を配置してください（gitignore対象）
+
+---
+
 ## フェーズ3: MediaPipeのセットアップ
 
 ### タスク
@@ -386,12 +454,13 @@ function sendTrackingData(headPose, blendShapes) {
 1. **フェーズ0**: 環境確認（5分）
 2. **フェーズ1**: WebSocket接続（15分）
 3. **フェーズ2**: カメラアクセス（15分）
-4. **フェーズ3**: MediaPipeセットアップ（30分〜1時間）← 最も時間がかかる可能性
-5. **フェーズ4**: BlendShape取得（30分）
-6. **フェーズ5**: 頭部姿勢計算（30分〜1時間）
-7. **フェーズ6**: Readable形式（30分）
-8. **フェーズ7**: Compressed形式（30分）
-9. **フェーズ8**: 統合（15分）
-10. **フェーズ9-10**: 改善・テスト（状況に応じて）
+4. **フェーズ2'**: 動画ファイル対応（20分）← **デバッグ効率化のため早めに実装推奨**
+5. **フェーズ3**: MediaPipeセットアップ（30分〜1時間）← 最も時間がかかる可能性
+6. **フェーズ4**: BlendShape取得（30分）
+7. **フェーズ5**: 頭部姿勢計算（30分〜1時間）
+8. **フェーズ6**: Readable形式（30分）
+9. **フェーズ7**: Compressed形式（30分）
+10. **フェーズ8**: 統合（15分）
+11. **フェーズ9-10**: 改善・テスト（状況に応じて）
 
-**合計見積もり**: 4〜6時間（デバッグ時間を含む）
+**合計見積もり**: 4.5〜6.5時間（デバッグ時間を含む）

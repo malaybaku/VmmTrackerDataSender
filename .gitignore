@@ -1,6 +1,12 @@
 # Claude Code
 .claude/settings.local.json
 
+# Test data (videos with faces)
+test-data/*.mp4
+test-data/*.webm
+test-data/*.mov
+test-data/*.avi
+
 # Node.js / npm
 node_modules/
 npm-debug.log*
