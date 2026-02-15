@@ -3,7 +3,7 @@
  * Handles WebSocket connection and data transmission
  */
 
-import type { HeadPose, SerializationFormat } from './types';
+import type { TrackingData, SerializationFormat } from './types';
 import { serializeReadable, serializeCompressed } from './serializers';
 
 export class WebSocketManager {
@@ -67,8 +67,7 @@ export class WebSocketManager {
    * Send tracking data
    */
   sendTrackingData(
-    headPose: HeadPose,
-    blendShapes: Array<{ categoryName: string; score: number }>,
+    trackingData: TrackingData,
     format: SerializationFormat
   ): void {
     if (!this.isConnected()) {
@@ -77,10 +76,10 @@ export class WebSocketManager {
     }
 
     if (format === 'readable') {
-      const data = serializeReadable(headPose, blendShapes);
+      const data = serializeReadable(trackingData);
       this.websocket!.send(data);
     } else {
-      const buffer = serializeCompressed(headPose, blendShapes);
+      const buffer = serializeCompressed(trackingData);
       this.websocket!.send(buffer);
     }
   }

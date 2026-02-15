@@ -4,12 +4,7 @@
  */
 
 import { FaceLandmarker, FilesetResolver, FaceLandmarkerResult } from '@mediapipe/tasks-vision';
-import type { HeadPose } from './types';
-
-export interface TrackingResult {
-  headPose: HeadPose;
-  blendShapes: Array<{ categoryName: string; score: number }>;
-}
+import type { HeadPose, BlendShapeData, TrackingData } from './types';
 
 export class MediaPipeManager {
   private faceLandmarker: FaceLandmarker | null = null;
@@ -18,7 +13,7 @@ export class MediaPipeManager {
   private videoElement: HTMLVideoElement | null = null;
 
   // Event handlers
-  public onTrackingData: ((data: TrackingResult) => void) | null = null;
+  public onTrackingData: ((data: TrackingData) => void) | null = null;
   public onInitialized: (() => void) | null = null;
   public onError: ((error: Error) => void) | null = null;
 
@@ -176,11 +171,17 @@ export class MediaPipeManager {
       rw: quaternion.w
     };
 
+    // Convert blendShapes to BlendShapeData (preserving order, converting to 0-255)
+    const blendShapeData: BlendShapeData = blendShapes.map((bs) => ({
+      name: bs.categoryName,
+      value: Math.round(bs.score * 255)
+    }));
+
     // Emit tracking data
     if (this.onTrackingData) {
       this.onTrackingData({
         headPose,
-        blendShapes
+        blendShape: blendShapeData
       });
     }
   }

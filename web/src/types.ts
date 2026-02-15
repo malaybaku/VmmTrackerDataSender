@@ -26,15 +26,22 @@ export interface HeadPose {
 }
 
 /**
- * BlendShape data (52 values, 0-255)
+ * Single BlendShape entry
  */
-export type BlendShapeData = Record<string, number>;
+export interface BlendShapeEntry {
+  name: string;
+  value: number; // 0-255
+}
 
 /**
- * Complete tracking data
+ * BlendShape data (array of 52 entries, preserving order)
+ */
+export type BlendShapeData = BlendShapeEntry[];
+
+/**
+ * Complete tracking data (version is managed separately in serializers)
  */
 export interface TrackingData {
-  version: string;
   headPose: HeadPose;
   blendShape: BlendShapeData;
 }

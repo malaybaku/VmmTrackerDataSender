@@ -2,34 +2,32 @@
  * Readable (JSON) format serializer
  */
 
-import type { HeadPose, BlendShapeData } from '../types';
+import type { TrackingData } from '../types';
+import { VERSION_STRING } from './version';
 
 /**
  * Serialize tracking data to Readable (JSON) format
  */
-export function serializeReadable(
-  headPose: HeadPose,
-  blendShapes: Array<{ categoryName: string; score: number }>
-): string {
-  const blendShapeObj: BlendShapeData = {};
-
-  blendShapes.forEach((bs) => {
-    blendShapeObj[bs.categoryName] = Math.round(bs.score * 255);
+export function serializeReadable(data: TrackingData): string {
+  // Convert BlendShapeData array to Record for JSON output
+  const blendShapeObj: Record<string, number> = {};
+  data.blendShape.forEach((bs) => {
+    blendShapeObj[bs.name] = bs.value;
   });
 
-  const data = {
-    version: "1.0.0",
+  const output = {
+    version: VERSION_STRING,
     headPose: {
-      px: headPose.px,
-      py: headPose.py,
-      pz: headPose.pz,
-      rx: headPose.rx,
-      ry: headPose.ry,
-      rz: headPose.rz,
-      rw: headPose.rw
+      px: data.headPose.px,
+      py: data.headPose.py,
+      pz: data.headPose.pz,
+      rx: data.headPose.rx,
+      ry: data.headPose.ry,
+      rz: data.headPose.rz,
+      rw: data.headPose.rw
     },
     blendShape: blendShapeObj
   };
 
-  return JSON.stringify(data);
+  return JSON.stringify(output);
 }

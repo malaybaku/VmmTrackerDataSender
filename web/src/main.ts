@@ -62,7 +62,7 @@ mediapipeManager.onError = (error) => {
 
 mediapipeManager.onTrackingData = (data) => {
   const format = formatSelect.value as 'readable' | 'compressed';
-  websocketManager.sendTrackingData(data.headPose, data.blendShapes, format);
+  websocketManager.sendTrackingData(data, format);
 };
 
 // WebSocket Events
