@@ -59,31 +59,42 @@
 
 ## 技術選定の決定事項
 
-### 通信プロトコル: WebSocket (決定済)
-- **決定日**: 2026-02-15
-- **採用理由**:
-  - LAN内通信ではWebRTCとのレイテンシ差がほぼない(1-4ms、全体の1-4%)
-  - 実装がシンプル(シグナリング不要)
-  - 一方向通信に適している
-  - デバッグ・保守が容易
-- **不採用技術**: WebRTC DataChannel (シグナリングの複雑さに見合う性能メリットなし)
+**詳細は `TECH_STACK.md` を参照**
+
+### 通信プロトコル: WebSocket
+- LAN内通信ではWebRTCとのレイテンシ差がほぼない(1-4ms、全体の1-4%)
+- 実装がシンプル、一方向通信に適している
+
+### Web側
+- **フレームワーク**: Vanilla JavaScript + TypeScript
+- **ビルドツール**: Vite
+- **MediaPipe**: @mediapipe/tasks-vision (最新版)
+- **WebSocket**: 標準WebSocket API
+
+### .NET側
+- **.NETバージョン**: .NET 8 (LTS)
+  - コア機能は.NET Standard 2.1ライブラリとして分離 (Unity/WPF互換性)
+- **WebSocket**: System.Net.WebSockets (HttpListenerベース)
+- **JSON**: System.Text.Json
+- **バイナリ**: 手動実装 (BinaryReader/Writer)
+
+### フォルダ構成
+```
+VmmTrackerDataSender/
+├── web/              # Webアプリケーション
+├── dotnet/           # .NET受信アプリ
+├── docs/             # 技術資料
+└── .github/workflows/
+```
 
 ## 未決定事項 / 検討が必要な項目
 
-以下の事項は実装前に検討・決定が必要:
-
-- [x] ~~WebRTC DataChannelの妥当性検証~~ → **WebSocket採用決定**
-- [ ] Webページのフレームワーク選定
-  - Vanilla JS / React / Vue / Svelte など
-  - MediaPipe, WebSocketとの相性を考慮
-- [ ] .NETバージョン選定
-  - .NET Framework 4.x / .NET 6/7/8 / .NET Standard
-  - WPF (.NET Framework/Core) および Unity 6.0 (Mono/.NET Standard 2.1)との互換性
-- [ ] フォルダ構成
-  - リポジトリルートでの分割方法 (例: `web/`, `dotnet/`)
-- [ ] GitHub Pages デプロイ方法
-  - GitHub Actions による自動デプロイが望ましい
-  - ビルドプロセスの有無
+- [x] ~~WebRTC DataChannelの妥当性検証~~ → **WebSocket採用**
+- [x] ~~Webページのフレームワーク選定~~ → **Vanilla TS + Vite**
+- [x] ~~.NETバージョン選定~~ → **.NET 8 + .NET Standard 2.1**
+- [x] ~~フォルダ構成~~ → **web/, dotnet/, docs/**
+- [x] ~~GitHub Pages デプロイ方法~~ → **GitHub Actions**
+- [ ] プロトコル仕様の詳細化 (バイト順、座標系など)
 
 ## 将来の拡張可能性
 
