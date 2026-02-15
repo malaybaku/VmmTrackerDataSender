@@ -8,11 +8,11 @@ test-data/*.mov
 test-data/*.avi
 
 # Web debug video files
-web/test-data/*.mp4
-web/test-data/*.webm
-web/test-data/*.mov
-web/test-data/*.avi
-!web/test-data/.gitkeep
+web/public/test-data/*.mp4
+web/public/test-data/*.webm
+web/public/test-data/*.mov
+web/public/test-data/*.avi
+!web/public/test-data/.gitkeep
 
 # Node.js / npm
 node_modules/

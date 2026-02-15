@@ -60,9 +60,10 @@ web/
 ├── src/
 │   ├── main.ts           # Application entry point
 │   └── vite-env.d.ts     # Vite type definitions
-├── test-data/            # Debug video files (gitignored)
-│   ├── .gitkeep          # Directory placeholder
-│   └── debug-video.mp4   # Auto-loaded in dev mode (not in repo)
+├── public/               # Static assets (served from root)
+│   └── test-data/        # Debug video files (gitignored)
+│       ├── .gitkeep      # Directory placeholder
+│       └── debug-video.mp4   # Auto-loaded in dev mode (not in repo)
 ├── index.html            # HTML template
 ├── package.json          # Dependencies and scripts
 ├── tsconfig.json         # TypeScript configuration
@@ -76,7 +77,7 @@ For faster development iteration, the application supports **auto-start mode** i
 
 ### How to Enable
 
-1. Place a video file at `web/test-data/debug-video.mp4`
+1. Place a video file at `web/public/test-data/debug-video.mp4`
 2. Start development server: `npm run dev`
 3. The application will automatically:
    - Load the debug video
@@ -85,7 +86,7 @@ For faster development iteration, the application supports **auto-start mode** i
 
 ### How to Disable
 
-- Simply remove `web/test-data/debug-video.mp4`
+- Simply remove `web/public/test-data/debug-video.mp4`
 - Or use production build (`npm run build`)
 
 ### Notes
@@ -99,7 +100,7 @@ For faster development iteration, the application supports **auto-start mode** i
 
 ```bash
 # Copy your test video
-cp /path/to/your/face-video.mp4 web/test-data/debug-video.mp4
+cp /path/to/your/face-video.mp4 web/public/test-data/debug-video.mp4
 
 # Start dev server with auto-start
 npm run dev

@@ -179,6 +179,18 @@ startTrackingBtn.addEventListener('click', () => {
 async function startTracking() {
   console.log('startTracking() called');
 
+  // Start video playback if not already playing
+  if (video.paused) {
+    try {
+      await video.play();
+      console.log('Video playback started');
+    } catch (err) {
+      console.error('Failed to start video playback:', err);
+      updateStatus('Failed to start video playback', 'error');
+      return;
+    }
+  }
+
   // Initialize MediaPipe if not already initialized
   if (!faceLandmarker) {
     console.log('faceLandmarker not initialized, calling initializeMediaPipe()');
@@ -386,19 +398,14 @@ async function autoStartDebugMode() {
     console.log('[DEBUG] Auto-starting with debug-video.mp4...');
     updateStatus('Loading debug video...', 'normal');
 
-    // 1. Load debug video
+    // 1. Load debug video (without playing - autoplay policy)
     video.src = debugVideoPath;
     video.loop = true;
-    await video.play();
-    console.log('[DEBUG] Video loaded and playing');
-    updateStatus('Debug video loaded', 'normal');
+    console.log('[DEBUG] Video loaded (not playing yet)');
 
     // Disable video source controls
     startVideoBtn.disabled = true;
     startTrackingBtn.disabled = false;
-
-    // Small delay to ensure video is ready
-    await new Promise(resolve => setTimeout(resolve, 100));
 
     // 2. Connect to WebSocket
     const wsUrl = serverUrlInput.value.trim() || 'ws://localhost:9090';
@@ -412,7 +419,7 @@ async function autoStartDebugMode() {
       websocket!.onopen = () => {
         clearTimeout(timeout);
         console.log('[DEBUG] WebSocket connected');
-        updateStatus('Connected to server (auto)', 'connected');
+        updateStatus('Debug ready - Click "Start Tracking" to begin', 'connected');
         connectBtn.textContent = 'Disconnect';
         resolve();
       };
@@ -432,20 +439,11 @@ async function autoStartDebugMode() {
       websocket = null;
     };
 
-    // Small delay before starting tracking
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // 3. Start tracking
-    console.log('[DEBUG] Starting tracking...');
-    await startTracking();
-    startTrackingBtn.textContent = 'Stop Tracking';
-
-    console.log('[DEBUG] Auto-start complete! 🎉');
-    updateStatus('Debug mode: Tracking active', 'connected');
+    console.log('[DEBUG] Auto-start complete! Click "Start Tracking" to begin 🎉');
 
   } catch (err) {
     console.log('[DEBUG] Auto-start failed:', err);
-    updateStatus('Debug auto-start failed - use manual controls', 'error');
+    updateStatus('Debug auto-start failed - Click "Start Tracking" manually', 'error');
 
     // Clean up on failure
     if (websocket) {
