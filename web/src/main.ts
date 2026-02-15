@@ -4,11 +4,12 @@
  */
 
 import { VideoSourceState, PreviewMode, TrackingStatus } from './types';
-import type { HeadPose, EulerAngles } from './types';
+import type { HeadPose, EulerAngles, SerializationFormat } from './types';
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { VideoSourceManager } from './videoSource';
 import { MediaPipeManager } from './mediapipe';
 import { WebSocketManager } from './websocket';
+import { WebRTCManager } from './webrtc';
 import { UIManager } from './ui';
 import { PreviewRenderer } from './previewRenderer';
 import { quaternionToEuler } from './utils/math';
@@ -21,10 +22,31 @@ import { autoStartDebugMode } from './debug';
 const video = document.getElementById('video') as HTMLVideoElement;
 const previewCanvas = document.getElementById('preview-canvas') as HTMLCanvasElement;
 const previewOverlay = document.getElementById('preview-overlay') as HTMLDivElement;
+
+// Connection type
+const connectionTypeSelect = document.getElementById('connection-type-select') as HTMLSelectElement;
+
+// WebSocket elements
+const websocketSettings = document.getElementById('websocket-settings') as HTMLDivElement;
 const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
 const formatSelect = document.getElementById('format-select') as HTMLSelectElement;
-const previewModeSelect = document.getElementById('preview-mode-select') as HTMLSelectElement;
 const connectBtn = document.getElementById('connect-btn') as HTMLButtonElement;
+
+// WebRTC elements
+const webrtcSettings = document.getElementById('webrtc-settings') as HTMLDivElement;
+const webrtcFormatSelect = document.getElementById('webrtc-format-select') as HTMLSelectElement;
+const webrtcInitOffererBtn = document.getElementById('webrtc-init-offerer-btn') as HTMLButtonElement;
+const webrtcInitAnswererBtn = document.getElementById('webrtc-init-answerer-btn') as HTMLButtonElement;
+const webrtcOfferSdp = document.getElementById('webrtc-offer-sdp') as HTMLTextAreaElement;
+const webrtcAnswerSdp = document.getElementById('webrtc-answer-sdp') as HTMLTextAreaElement;
+const webrtcIceCandidate = document.getElementById('webrtc-ice-candidate') as HTMLTextAreaElement;
+const webrtcCopyOfferBtn = document.getElementById('webrtc-copy-offer-btn') as HTMLButtonElement;
+const webrtcSetAnswerBtn = document.getElementById('webrtc-set-answer-btn') as HTMLButtonElement;
+const webrtcAddIceBtn = document.getElementById('webrtc-add-ice-btn') as HTMLButtonElement;
+const webrtcStatus = document.getElementById('webrtc-status') as HTMLSpanElement;
+
+// Other elements
+const previewModeSelect = document.getElementById('preview-mode-select') as HTMLSelectElement;
 const startCameraBtn = document.getElementById('start-camera-btn') as HTMLButtonElement;
 const startVideoBtn = document.getElementById('start-video-btn') as HTMLButtonElement;
 const restartVideoBtn = document.getElementById('restart-video-btn') as HTMLButtonElement;
@@ -39,6 +61,7 @@ const statusSpan = document.getElementById('status') as HTMLSpanElement;
 const videoSourceManager = new VideoSourceManager(video);
 const mediapipeManager = new MediaPipeManager();
 const websocketManager = new WebSocketManager();
+const webrtcManager = new WebRTCManager();
 const uiManager = new UIManager(
   statusSpan,
   connectBtn,
@@ -57,6 +80,13 @@ let currentTrackingStatus: TrackingStatus = TrackingStatus.NotTracking;
 let currentHeadPose: HeadPose | null = null;
 let currentEuler: EulerAngles | null = null;
 let currentLandmarks: NormalizedLandmark[] | null = null;
+
+// ============================================================================
+// State Management for Connection
+// ============================================================================
+
+type ConnectionType = 'websocket' | 'webrtc';
+let currentConnectionType: ConnectionType = 'websocket';
 
 // ============================================================================
 // Event Handlers Setup
@@ -78,8 +108,14 @@ mediapipeManager.onError = (error) => {
 };
 
 mediapipeManager.onTrackingData = (data) => {
-  const format = formatSelect.value as 'readable' | 'compressed';
-  websocketManager.sendTrackingData(data, format);
+  // Send data based on connection type
+  if (currentConnectionType === 'websocket') {
+    const format = formatSelect.value as SerializationFormat;
+    websocketManager.sendTrackingData(data, format);
+  } else if (currentConnectionType === 'webrtc') {
+    const format = webrtcFormatSelect.value as SerializationFormat;
+    webrtcManager.sendTrackingData(data, format);
+  }
 
   // Update state for preview
   currentHeadPose = data.headPose;
@@ -118,6 +154,57 @@ websocketManager.onError = (err) => {
   uiManager.updateStatus('WebSocket connection error', 'error');
 };
 
+// WebRTC Events
+webrtcManager.onConnectionStateChange = (state) => {
+  console.log('[Main] WebRTC connection state:', state);
+  webrtcStatus.textContent = `Connection: ${state}`;
+  webrtcStatus.className = 'status';
+  if (state === 'connected') {
+    webrtcStatus.classList.add('connected');
+  } else if (state === 'failed') {
+    webrtcStatus.classList.add('error');
+  }
+};
+
+webrtcManager.onDataChannelStateChange = (state) => {
+  console.log('[Main] WebRTC data channel state:', state);
+  if (state === 'open') {
+    uiManager.updateStatus('WebRTC DataChannel opened', 'connected');
+  } else if (state === 'closed') {
+    uiManager.updateStatus('WebRTC DataChannel closed', 'normal');
+  }
+};
+
+webrtcManager.onOfferGenerated = (sdp) => {
+  console.log('[Main] Offer SDP generated');
+  webrtcOfferSdp.value = sdp;
+};
+
+webrtcManager.onAnswerGenerated = (sdp) => {
+  console.log('[Main] Answer SDP generated');
+  webrtcAnswerSdp.value = sdp;
+};
+
+webrtcManager.onIceCandidate = (candidate) => {
+  console.log('[Main] ICE candidate:', candidate.candidate);
+  // Append ICE candidate to textarea (one per line)
+  const candidateJson = JSON.stringify({
+    candidate: candidate.candidate,
+    sdpMid: candidate.sdpMid,
+    sdpMLineIndex: candidate.sdpMLineIndex
+  });
+  if (webrtcIceCandidate.value) {
+    webrtcIceCandidate.value += '\n' + candidateJson;
+  } else {
+    webrtcIceCandidate.value = candidateJson;
+  }
+};
+
+webrtcManager.onError = (error) => {
+  console.error('[Main] WebRTC error:', error);
+  uiManager.updateStatus(`WebRTC error: ${error.message}`, 'error');
+};
+
 // ============================================================================
 // Preview Update Function
 // ============================================================================
@@ -150,6 +237,20 @@ startPreviewAnimationLoop();
 // Button Click Handlers
 // ============================================================================
 
+// Connection Type Change
+connectionTypeSelect.addEventListener('change', () => {
+  const type = connectionTypeSelect.value as ConnectionType;
+  currentConnectionType = type;
+
+  if (type === 'websocket') {
+    websocketSettings.style.display = 'flex';
+    webrtcSettings.style.display = 'none';
+  } else {
+    websocketSettings.style.display = 'none';
+    webrtcSettings.style.display = 'block';
+  }
+});
+
 // Preview Mode Change
 previewModeSelect.addEventListener('change', () => {
   const mode = previewModeSelect.value as PreviewMode;
@@ -180,6 +281,94 @@ connectBtn.addEventListener('click', async () => {
   } catch (err) {
     console.error('[Main] Failed to connect:', err);
     uiManager.updateStatus('Failed to connect', 'error');
+  }
+});
+
+// WebRTC: Initialize as Offerer
+webrtcInitOffererBtn.addEventListener('click', async () => {
+  try {
+    uiManager.updateStatus('Initializing WebRTC as offerer...', 'normal');
+    await webrtcManager.initializeAsOfferer();
+    uiManager.updateStatus('Offer generated. Copy and send to remote peer.', 'normal');
+  } catch (err) {
+    console.error('[Main] Failed to initialize as offerer:', err);
+    uiManager.updateStatus('Failed to initialize WebRTC', 'error');
+  }
+});
+
+// WebRTC: Initialize as Answerer
+webrtcInitAnswererBtn.addEventListener('click', async () => {
+  const offerSdp = webrtcOfferSdp.value.trim();
+  if (!offerSdp) {
+    uiManager.updateStatus('Please paste Offer SDP first', 'error');
+    return;
+  }
+
+  try {
+    uiManager.updateStatus('Initializing WebRTC as answerer...', 'normal');
+    await webrtcManager.initializeAsAnswerer(offerSdp);
+    uiManager.updateStatus('Answer generated. Copy and send to remote peer.', 'normal');
+  } catch (err) {
+    console.error('[Main] Failed to initialize as answerer:', err);
+    uiManager.updateStatus('Failed to initialize WebRTC', 'error');
+  }
+});
+
+// WebRTC: Copy Offer SDP
+webrtcCopyOfferBtn.addEventListener('click', async () => {
+  const sdp = webrtcOfferSdp.value;
+  if (!sdp) {
+    uiManager.updateStatus('No Offer SDP to copy', 'error');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(sdp);
+    uiManager.updateStatus('Offer SDP copied to clipboard', 'normal');
+  } catch (err) {
+    console.error('[Main] Failed to copy:', err);
+    uiManager.updateStatus('Failed to copy to clipboard', 'error');
+  }
+});
+
+// WebRTC: Set Answer SDP
+webrtcSetAnswerBtn.addEventListener('click', async () => {
+  const answerSdp = webrtcAnswerSdp.value.trim();
+  if (!answerSdp) {
+    uiManager.updateStatus('Please paste Answer SDP first', 'error');
+    return;
+  }
+
+  try {
+    uiManager.updateStatus('Setting Answer SDP...', 'normal');
+    await webrtcManager.setRemoteAnswer(answerSdp);
+    uiManager.updateStatus('Answer SDP set. Connection establishing...', 'normal');
+  } catch (err) {
+    console.error('[Main] Failed to set answer:', err);
+    uiManager.updateStatus('Failed to set Answer SDP', 'error');
+  }
+});
+
+// WebRTC: Add ICE Candidate
+webrtcAddIceBtn.addEventListener('click', async () => {
+  const candidateText = webrtcIceCandidate.value.trim();
+  if (!candidateText) {
+    uiManager.updateStatus('Please paste ICE candidate JSON', 'error');
+    return;
+  }
+
+  try {
+    // Parse JSON (assume one candidate per line)
+    const lines = candidateText.split('\n').filter(line => line.trim());
+    for (const line of lines) {
+      const candidate = JSON.parse(line);
+      await webrtcManager.addIceCandidate(candidate);
+    }
+    uiManager.updateStatus(`Added ${lines.length} ICE candidate(s)`, 'normal');
+    webrtcIceCandidate.value = ''; // Clear after adding
+  } catch (err) {
+    console.error('[Main] Failed to add ICE candidate:', err);
+    uiManager.updateStatus('Failed to add ICE candidate. Check JSON format.', 'error');
   }
 });
 
