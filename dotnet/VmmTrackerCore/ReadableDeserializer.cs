@@ -8,8 +8,11 @@ namespace VmmTrackerCore;
 /// </summary>
 public class ReadableDeserializer : ITrackingDataDeserializer
 {
+    private const int MaxSupportedMajorVersion = 1;
+
     private class ReadableFormat
     {
+        public string? version { get; set; }
         public HeadPoseJson? headPose { get; set; }
         public JsonElement? blendShape { get; set; }
     }
@@ -33,7 +36,30 @@ public class ReadableDeserializer : ITrackingDataDeserializer
         }
 
         var json = JsonSerializer.Deserialize<ReadableFormat>(data);
-        if (json?.headPose == null)
+        if (json == null)
+        {
+            throw new ArgumentException("Invalid JSON format");
+        }
+
+        // Validate version
+        if (string.IsNullOrEmpty(json.version))
+        {
+            throw new ArgumentException("Invalid JSON format: missing version");
+        }
+
+        var versionParts = json.version.Split('.');
+        if (versionParts.Length < 1 || !int.TryParse(versionParts[0], out int majorVersion))
+        {
+            throw new ArgumentException($"Invalid version format: {json.version}");
+        }
+
+        if (majorVersion > MaxSupportedMajorVersion)
+        {
+            throw new ArgumentException($"Unsupported protocol version {json.version}. Maximum supported major version is {MaxSupportedMajorVersion}");
+        }
+
+        // Validate headPose
+        if (json.headPose == null)
         {
             throw new ArgumentException("Invalid JSON format: missing headPose");
         }
