@@ -403,8 +403,7 @@ async function autoStartDebugMode() {
     video.loop = true;
     console.log('[DEBUG] Video loaded (not playing yet)');
 
-    // Disable video source controls
-    startVideoBtn.disabled = true;
+    // Enable tracking button (keep Start Video enabled for camera/file switching)
     startTrackingBtn.disabled = false;
 
     // 2. Connect to WebSocket
@@ -443,13 +442,20 @@ async function autoStartDebugMode() {
 
   } catch (err) {
     console.log('[DEBUG] Auto-start failed:', err);
-    updateStatus('Debug auto-start failed - Click "Start Tracking" manually', 'error');
+    updateStatus('Debug auto-start failed - use manual controls', 'error');
 
     // Clean up on failure
     if (websocket) {
       websocket.close();
       websocket = null;
     }
+
+    // Restore UI to initial state
+    video.src = '';
+    video.srcObject = null;
+    startVideoBtn.disabled = false;
+    startTrackingBtn.disabled = true;
+    connectBtn.textContent = 'Connect';
   }
 }
 
