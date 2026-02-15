@@ -71,6 +71,15 @@ startVideoBtn.addEventListener('click', async () => {
   const source = videoSourceSelect.value;
 
   try {
+    // Clear previous video sources
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      mediaStream = null;
+    }
+    video.srcObject = null;
+    video.src = '';
+    video.load();
+
     if (source === 'camera') {
       // Camera source
       mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -227,10 +236,11 @@ function sendTrackingData(results: FaceLandmarkerResult) {
   const blendShapes = results.faceBlendshapes[0]!.categories;
   const matrix = results.facialTransformationMatrixes[0]!.data;
 
-  // Extract position from transformation matrix
-  const px = matrix[3]!;
-  const py = matrix[7]!;
-  const pz = matrix[11]!;
+  // Extract position from transformation matrix (column-major format)
+  // Position is in the last column: matrix[12], matrix[13], matrix[14]
+  const px = matrix[12]!;
+  const py = matrix[13]!;
+  const pz = matrix[14]!;
 
   // Extract rotation (convert matrix to quaternion)
   const quaternion = matrixToQuaternion(matrix);
