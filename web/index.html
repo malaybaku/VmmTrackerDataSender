@@ -111,8 +111,8 @@
         <input
           type="text"
           id="server-url"
-          placeholder="WebSocket URL (e.g., ws://192.168.1.100:8080)"
-          value="ws://localhost:8080"
+          placeholder="WebSocket URL (e.g., ws://192.168.1.100:9090)"
+          value="ws://localhost:9090"
         />
         <select id="format-select">
           <option value="readable">Readable (JSON)</option>
@@ -121,10 +121,16 @@
         <button id="connect-btn">Connect</button>
       </div>
       <div class="control-row">
-        <button id="start-camera-btn">Start Camera</button>
+        <select id="video-source-select">
+          <option value="camera">Camera</option>
+          <option value="file">Video File</option>
+          <option value="test-data">Test Data (test-data/sample.mp4)</option>
+        </select>
+        <button id="start-video-btn">Start Video</button>
         <button id="start-tracking-btn" disabled>Start Tracking</button>
         <span class="status" id="status">Ready</span>
       </div>
+      <input type="file" id="video-file-input" accept="video/*" style="display:none" />
     </div>
   </div>
   <script type="module" src="/src/main.ts"></script>

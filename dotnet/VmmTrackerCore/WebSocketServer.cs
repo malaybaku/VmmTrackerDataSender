@@ -24,7 +24,7 @@ public class WebSocketServer : IDisposable
     {
         _deserializer = deserializer ?? throw new ArgumentNullException(nameof(deserializer));
         _httpListener = new HttpListener();
-        _httpListener.Prefixes.Add($"http://+:{port}/");
+        _httpListener.Prefixes.Add($"http://localhost:{port}/");
     }
 
     public void Start()
