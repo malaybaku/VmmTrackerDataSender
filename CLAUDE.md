@@ -112,6 +112,9 @@ VmmTrackerDataSender/
 - カメラアクセス、WebSocket接続の権限処理
 - パフォーマンス最適化(バッテリー消費、フレームレート)
 - WebSocket接続先(.NET側のIP:Port)の入力UI
+- **デバッグ用テストデータ**: `test-data/sample.mp4` が利用可能
+  - 顔を隠している時間帯を含む（トラッキングロス時の動作確認用）
+  - 将来的にトラッキングロス時の挙動について追加実装予定
 
 ### .NET側
 - WebSocketサーバーの実装(`System.Net.WebSockets`推奨)
