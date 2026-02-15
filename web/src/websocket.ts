@@ -15,6 +15,28 @@ export class WebSocketManager {
   public onError: ((error: Event) => void) | null = null;
 
   /**
+   * Adjust WebSocket protocol based on page protocol
+   * HTTPS pages require wss://, HTTP pages can use ws://
+   */
+  private adjustWebSocketUrl(url: string): string {
+    const isSecure = window.location.protocol === 'https:';
+
+    // If URL starts with ws:// and page is HTTPS, convert to wss://
+    if (isSecure && url.startsWith('ws://')) {
+      console.warn('[WebSocket] Page is HTTPS, converting ws:// to wss://');
+      return url.replace(/^ws:\/\//, 'wss://');
+    }
+
+    // If URL starts with wss:// and page is HTTP, convert to ws://
+    if (!isSecure && url.startsWith('wss://')) {
+      console.warn('[WebSocket] Page is HTTP, converting wss:// to ws://');
+      return url.replace(/^wss:\/\//, 'ws://');
+    }
+
+    return url;
+  }
+
+  /**
    * Connect to WebSocket server
    */
   async connect(url: string): Promise<void> {
@@ -22,8 +44,12 @@ export class WebSocketManager {
       throw new Error('Already connected');
     }
 
+    // Adjust protocol based on page security
+    const adjustedUrl = this.adjustWebSocketUrl(url);
+    console.log(`[WebSocket] Connecting to: ${adjustedUrl}`);
+
     return new Promise((resolve, reject) => {
-      const ws = new WebSocket(url);
+      const ws = new WebSocket(adjustedUrl);
       const timeout = setTimeout(() => reject(new Error('Connection timeout')), 5000);
 
       ws.onopen = () => {
