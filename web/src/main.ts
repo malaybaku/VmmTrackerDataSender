@@ -31,14 +31,6 @@ function updateStatus(message: string, type: 'normal' | 'connected' | 'error' = 
   if (type === 'error') statusSpan.classList.add('error');
 }
 
-// Callback for receiving tracking results from MediaPipe
-function onTrackingResult(result: FaceLandmarkerResult) {
-  if (result.faceBlendshapes && result.faceBlendshapes.length > 0 &&
-      result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
-    sendTrackingData(result);
-  }
-}
-
 // Initialize MediaPipe Face Landmarker
 async function initializeMediaPipe() {
   try {
@@ -59,9 +51,8 @@ async function initializeMediaPipe() {
       },
       outputFaceBlendshapes: true,
       outputFacialTransformationMatrixes: true,
-      runningMode: "LIVE_STREAM",
-      numFaces: 1,
-      resultListener: onTrackingResult
+      runningMode: "VIDEO",
+      numFaces: 1
     });
     console.log('Face Landmarker created successfully');
 
@@ -212,8 +203,12 @@ function processVideoFrame() {
     lastVideoTime = video.currentTime;
 
     try {
-      // detectForVideo in LIVE_STREAM mode - results are received via callback
-      faceLandmarker.detectForVideo(video, performance.now());
+      const results = faceLandmarker.detectForVideo(video, performance.now());
+
+      if (results.faceBlendshapes && results.faceBlendshapes.length > 0 &&
+          results.facialTransformationMatrixes && results.facialTransformationMatrixes.length > 0) {
+        sendTrackingData(results);
+      }
     } catch (error) {
       console.error('Error processing frame:', error);
     }
