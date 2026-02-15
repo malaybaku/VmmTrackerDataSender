@@ -8,12 +8,10 @@ import type { HeadPose, EulerAngles, SerializationFormat } from './types';
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { VideoSourceManager } from './videoSource';
 import { MediaPipeManager } from './mediapipe';
-import { WebSocketManager } from './websocket';
 import { WebRTCManager } from './webrtc';
 import { UIManager } from './ui';
 import { PreviewRenderer } from './previewRenderer';
 import { quaternionToEuler } from './utils/math';
-import { autoStartDebugMode } from './debug';
 
 // ============================================================================
 // UI Elements
@@ -23,17 +21,7 @@ const video = document.getElementById('video') as HTMLVideoElement;
 const previewCanvas = document.getElementById('preview-canvas') as HTMLCanvasElement;
 const previewOverlay = document.getElementById('preview-overlay') as HTMLDivElement;
 
-// Connection type
-const connectionTypeSelect = document.getElementById('connection-type-select') as HTMLSelectElement;
-
-// WebSocket elements
-const websocketSettings = document.getElementById('websocket-settings') as HTMLDivElement;
-const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
-const formatSelect = document.getElementById('format-select') as HTMLSelectElement;
-const connectBtn = document.getElementById('connect-btn') as HTMLButtonElement;
-
 // WebRTC elements
-const webrtcSettings = document.getElementById('webrtc-settings') as HTMLDivElement;
 const webrtcFormatSelect = document.getElementById('webrtc-format-select') as HTMLSelectElement;
 const webrtcInitOffererBtn = document.getElementById('webrtc-init-offerer-btn') as HTMLButtonElement;
 const webrtcInitAnswererBtn = document.getElementById('webrtc-init-answerer-btn') as HTMLButtonElement;
@@ -60,11 +48,9 @@ const statusSpan = document.getElementById('status') as HTMLSpanElement;
 
 const videoSourceManager = new VideoSourceManager(video);
 const mediapipeManager = new MediaPipeManager();
-const websocketManager = new WebSocketManager();
 const webrtcManager = new WebRTCManager();
 const uiManager = new UIManager(
   statusSpan,
-  connectBtn,
   startCameraBtn,
   startVideoBtn,
   restartVideoBtn,
@@ -80,13 +66,6 @@ let currentTrackingStatus: TrackingStatus = TrackingStatus.NotTracking;
 let currentHeadPose: HeadPose | null = null;
 let currentEuler: EulerAngles | null = null;
 let currentLandmarks: NormalizedLandmark[] | null = null;
-
-// ============================================================================
-// State Management for Connection
-// ============================================================================
-
-type ConnectionType = 'websocket' | 'webrtc';
-let currentConnectionType: ConnectionType = 'websocket';
 
 // ============================================================================
 // Event Handlers Setup
@@ -108,14 +87,9 @@ mediapipeManager.onError = (error) => {
 };
 
 mediapipeManager.onTrackingData = (data) => {
-  // Send data based on connection type
-  if (currentConnectionType === 'websocket') {
-    const format = formatSelect.value as SerializationFormat;
-    websocketManager.sendTrackingData(data, format);
-  } else if (currentConnectionType === 'webrtc') {
-    const format = webrtcFormatSelect.value as SerializationFormat;
-    webrtcManager.sendTrackingData(data, format);
-  }
+  // Send data via WebRTC DataChannel
+  const format = webrtcFormatSelect.value as SerializationFormat;
+  webrtcManager.sendTrackingData(data, format);
 
   // Update state for preview
   currentHeadPose = data.headPose;
@@ -134,24 +108,6 @@ mediapipeManager.onTrackingStatus = (status) => {
 
 mediapipeManager.onLandmarks = (landmarks) => {
   currentLandmarks = landmarks;
-};
-
-// WebSocket Events
-websocketManager.onOpen = () => {
-  console.log('[Main] WebSocket connected');
-  uiManager.updateStatus('Connected to server', 'connected');
-  uiManager.setConnectButtonText('Disconnect');
-};
-
-websocketManager.onClose = () => {
-  console.log('[Main] WebSocket closed');
-  uiManager.updateStatus('Disconnected from server', 'normal');
-  uiManager.setConnectButtonText('Connect');
-};
-
-websocketManager.onError = (err) => {
-  console.error('[Main] WebSocket error:', err);
-  uiManager.updateStatus('WebSocket connection error', 'error');
 };
 
 // WebRTC Events
@@ -237,51 +193,11 @@ startPreviewAnimationLoop();
 // Button Click Handlers
 // ============================================================================
 
-// Connection Type Change
-connectionTypeSelect.addEventListener('change', () => {
-  const type = connectionTypeSelect.value as ConnectionType;
-  currentConnectionType = type;
-
-  if (type === 'websocket') {
-    websocketSettings.style.display = 'flex';
-    webrtcSettings.style.display = 'none';
-  } else {
-    websocketSettings.style.display = 'none';
-    webrtcSettings.style.display = 'block';
-  }
-});
-
 // Preview Mode Change
 previewModeSelect.addEventListener('change', () => {
   const mode = previewModeSelect.value as PreviewMode;
   previewRenderer.setMode(mode);
   updatePreview();
-});
-
-// Connect to WebSocket
-connectBtn.addEventListener('click', async () => {
-  const url = serverUrlInput.value.trim();
-  console.log('[Main] Connect button clicked, URL:', url);
-
-  if (!url) {
-    uiManager.updateStatus('Please enter WebSocket URL', 'error');
-    return;
-  }
-
-  // Disconnect if already connected
-  if (websocketManager.isConnected()) {
-    console.log('[Main] Disconnecting existing connection');
-    websocketManager.disconnect();
-    return;
-  }
-
-  try {
-    console.log('[Main] Creating WebSocket connection to:', url);
-    await websocketManager.connect(url);
-  } catch (err) {
-    console.error('[Main] Failed to connect:', err);
-    uiManager.updateStatus('Failed to connect', 'error');
-  }
 });
 
 // WebRTC: Initialize as Offerer
@@ -489,11 +405,3 @@ uiManager.updateStatus('Ready - Click "Start Camera" or "Start Video"', 'normal'
 
 // Initial preview render
 updatePreview();
-
-// Auto-start debug mode if in development
-autoStartDebugMode(
-  videoSourceManager,
-  websocketManager,
-  uiManager,
-  serverUrlInput.value.trim()
-);

@@ -231,31 +231,8 @@
       <div id="preview-overlay"></div>
     </div>
     <div id="controls">
-      <div class="control-row">
-        <label for="connection-type-select" style="color: #aaa;">接続方法:</label>
-        <select id="connection-type-select">
-          <option value="websocket">WebSocket</option>
-          <option value="webrtc">WebRTC (PoC)</option>
-        </select>
-      </div>
-
-      <!-- WebSocket settings -->
-      <div class="control-row" id="websocket-settings">
-        <input
-          type="text"
-          id="server-url"
-          placeholder="WebSocket URL (e.g., ws://192.168.1.100:9090)"
-          value="ws://localhost:9090"
-        />
-        <select id="format-select">
-          <option value="compressed">Compressed (Binary)</option>
-          <option value="readable">Readable (JSON)</option>
-        </select>
-        <button id="connect-btn">Connect</button>
-      </div>
-
       <!-- WebRTC settings -->
-      <div id="webrtc-settings" style="display: none;">
+      <div id="webrtc-settings">
         <div class="control-row">
           <select id="webrtc-format-select">
             <option value="compressed">Compressed (Binary)</option>

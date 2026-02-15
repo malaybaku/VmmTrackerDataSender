@@ -7,7 +7,6 @@ import { VideoSourceState, type StatusType } from './types';
 
 export class UIManager {
   private readonly statusSpan: HTMLSpanElement;
-  private readonly connectBtn: HTMLButtonElement;
   private readonly startCameraBtn: HTMLButtonElement;
   private readonly startVideoBtn: HTMLButtonElement;
   private readonly restartVideoBtn: HTMLButtonElement;
@@ -15,14 +14,12 @@ export class UIManager {
 
   constructor(
     statusSpan: HTMLSpanElement,
-    connectBtn: HTMLButtonElement,
     startCameraBtn: HTMLButtonElement,
     startVideoBtn: HTMLButtonElement,
     restartVideoBtn: HTMLButtonElement,
     stopTrackingBtn: HTMLButtonElement
   ) {
     this.statusSpan = statusSpan;
-    this.connectBtn = connectBtn;
     this.startCameraBtn = startCameraBtn;
     this.startVideoBtn = startVideoBtn;
     this.restartVideoBtn = restartVideoBtn;
@@ -82,12 +79,5 @@ export class UIManager {
     }
 
     console.log(`[UI] Button states updated for: ${state}`);
-  }
-
-  /**
-   * Set connect button text
-   */
-  setConnectButtonText(text: string): void {
-    this.connectBtn.textContent = text;
   }
 }
