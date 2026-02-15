@@ -75,7 +75,7 @@ async function initializeMediaPipe() {
   }
 }
 
-// Start video source (camera, file, or test data)
+// Start video source (camera or file)
 startVideoBtn.addEventListener('click', async () => {
   const source = videoSourceSelect.value;
 
@@ -110,12 +110,6 @@ startVideoBtn.addEventListener('click', async () => {
       };
       videoFileInput.click();
       return; // Don't disable button yet, wait for file selection
-    } else if (source === 'test-data') {
-      // Test data (sample.mp4)
-      video.src = './test-data/sample.mp4';
-      video.loop = true;
-      await video.play();
-      updateStatus('Test data loaded', 'normal');
     }
 
     startVideoBtn.disabled = true;
@@ -218,8 +212,8 @@ function processVideoFrame() {
     lastVideoTime = video.currentTime;
 
     try {
-      // Use detectAsync for LIVE_STREAM mode - results are received via callback
-      faceLandmarker.detectAsync(video, performance.now());
+      // detectForVideo in LIVE_STREAM mode - results are received via callback
+      faceLandmarker.detectForVideo(video, performance.now());
     } catch (error) {
       console.error('Error processing frame:', error);
     }
