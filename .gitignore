@@ -1,3 +1,6 @@
+# Claude Code
+.claude/settings.local.json
+
 # Node.js / npm
 node_modules/
 npm-debug.log*
