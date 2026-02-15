@@ -56,3 +56,30 @@ export type SerializationFormat = 'readable' | 'compressed';
  * Status message type
  */
 export type StatusType = 'normal' | 'connected' | 'error';
+
+/**
+ * Preview mode for video display
+ */
+export enum PreviewMode {
+  StatusData = 'status-data',
+  StatusDataLandmarks = 'status-data-landmarks',
+  VideoRaw = 'video-raw'
+}
+
+/**
+ * Tracking status
+ */
+export enum TrackingStatus {
+  NotTracking = 'not-tracking',
+  TrackingNoFace = 'tracking-no-face',
+  TrackingSuccess = 'tracking-success'
+}
+
+/**
+ * Euler angles (in degrees)
+ */
+export interface EulerAngles {
+  pitch: number; // up/down rotation
+  yaw: number;   // left/right rotation
+  roll: number;  // tilt rotation
+}

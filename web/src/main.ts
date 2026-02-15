@@ -3,11 +3,15 @@
  * Face tracking using MediaPipe and data transmission via WebSocket
  */
 
-import { VideoSourceState } from './types';
+import { VideoSourceState, PreviewMode, TrackingStatus } from './types';
+import type { HeadPose, EulerAngles } from './types';
+import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { VideoSourceManager } from './videoSource';
 import { MediaPipeManager } from './mediapipe';
 import { WebSocketManager } from './websocket';
 import { UIManager } from './ui';
+import { PreviewRenderer } from './previewRenderer';
+import { quaternionToEuler } from './utils/math';
 import { autoStartDebugMode } from './debug';
 
 // ============================================================================
@@ -15,8 +19,11 @@ import { autoStartDebugMode } from './debug';
 // ============================================================================
 
 const video = document.getElementById('video') as HTMLVideoElement;
+const previewCanvas = document.getElementById('preview-canvas') as HTMLCanvasElement;
+const previewOverlay = document.getElementById('preview-overlay') as HTMLDivElement;
 const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
 const formatSelect = document.getElementById('format-select') as HTMLSelectElement;
+const previewModeSelect = document.getElementById('preview-mode-select') as HTMLSelectElement;
 const connectBtn = document.getElementById('connect-btn') as HTMLButtonElement;
 const startCameraBtn = document.getElementById('start-camera-btn') as HTMLButtonElement;
 const startVideoBtn = document.getElementById('start-video-btn') as HTMLButtonElement;
@@ -40,6 +47,16 @@ const uiManager = new UIManager(
   restartVideoBtn,
   stopTrackingBtn
 );
+const previewRenderer = new PreviewRenderer(previewCanvas, previewOverlay, video);
+
+// ============================================================================
+// State Management for Preview
+// ============================================================================
+
+let currentTrackingStatus: TrackingStatus = TrackingStatus.NotTracking;
+let currentHeadPose: HeadPose | null = null;
+let currentEuler: EulerAngles | null = null;
+let currentLandmarks: NormalizedLandmark[] | null = null;
 
 // ============================================================================
 // Event Handlers Setup
@@ -63,6 +80,24 @@ mediapipeManager.onError = (error) => {
 mediapipeManager.onTrackingData = (data) => {
   const format = formatSelect.value as 'readable' | 'compressed';
   websocketManager.sendTrackingData(data, format);
+
+  // Update state for preview
+  currentHeadPose = data.headPose;
+  currentEuler = quaternionToEuler({
+    x: data.headPose.rx,
+    y: data.headPose.ry,
+    z: data.headPose.rz,
+    w: data.headPose.rw
+  });
+};
+
+mediapipeManager.onTrackingStatus = (status) => {
+  currentTrackingStatus = status;
+  updatePreview();
+};
+
+mediapipeManager.onLandmarks = (landmarks) => {
+  currentLandmarks = landmarks;
 };
 
 // WebSocket Events
@@ -84,8 +119,43 @@ websocketManager.onError = (err) => {
 };
 
 // ============================================================================
+// Preview Update Function
+// ============================================================================
+
+function updatePreview(): void {
+  previewRenderer.render(
+    currentTrackingStatus,
+    currentHeadPose,
+    currentEuler,
+    currentLandmarks
+  );
+}
+
+// Start animation loop for mode C (landmarks rendering)
+function startPreviewAnimationLoop(): void {
+  function animate(): void {
+    const mode = previewRenderer.getMode();
+    if (mode === PreviewMode.StatusDataLandmarks) {
+      updatePreview();
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+// Start animation loop
+startPreviewAnimationLoop();
+
+// ============================================================================
 // Button Click Handlers
 // ============================================================================
+
+// Preview Mode Change
+previewModeSelect.addEventListener('change', () => {
+  const mode = previewModeSelect.value as PreviewMode;
+  previewRenderer.setMode(mode);
+  updatePreview();
+});
 
 // Connect to WebSocket
 connectBtn.addEventListener('click', async () => {
@@ -227,6 +297,9 @@ stopTrackingBtn.addEventListener('click', () => {
 
 uiManager.updateButtonStates(VideoSourceState.None);
 uiManager.updateStatus('Ready - Click "Start Camera" or "Start Video"', 'normal');
+
+// Initial preview render
+updatePreview();
 
 // Auto-start debug mode if in development
 autoStartDebugMode(

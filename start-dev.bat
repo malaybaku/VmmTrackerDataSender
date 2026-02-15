@@ -9,7 +9,7 @@ echo.
 
 REM Open browser
 echo [1/2] Opening browser...
-start http://localhost:3001/VmmTrackerDataSender/
+start http://localhost:3000
 
 REM Wait a bit before starting receiver
 timeout /t 2 /nobreak >nul

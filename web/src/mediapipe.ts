@@ -3,7 +3,8 @@
  * Manages MediaPipe Face Landmarker initialization and tracking
  */
 
-import { FaceLandmarker, FilesetResolver, FaceLandmarkerResult } from '@mediapipe/tasks-vision';
+import { FaceLandmarker, FilesetResolver, FaceLandmarkerResult, NormalizedLandmark } from '@mediapipe/tasks-vision';
+import { TrackingStatus } from './types';
 import type { HeadPose, BlendShapeData, TrackingData } from './types';
 
 export class MediaPipeManager {
@@ -16,6 +17,8 @@ export class MediaPipeManager {
   public onTrackingData: ((data: TrackingData) => void) | null = null;
   public onInitialized: (() => void) | null = null;
   public onError: ((error: Error) => void) | null = null;
+  public onTrackingStatus: ((status: TrackingStatus) => void) | null = null;
+  public onLandmarks: ((landmarks: NormalizedLandmark[]) => void) | null = null;
 
   /**
    * Initialize MediaPipe Face Landmarker
@@ -111,6 +114,12 @@ export class MediaPipeManager {
   stopTracking(): void {
     this.isTracking = false;
     this.videoElement = null;
+
+    // Notify not tracking status
+    if (this.onTrackingStatus) {
+      this.onTrackingStatus(TrackingStatus.NotTracking);
+    }
+
     console.log('[MediaPipe] Tracking stopped');
   }
 
@@ -134,10 +143,29 @@ export class MediaPipeManager {
 
         if (results.faceBlendshapes && results.faceBlendshapes.length > 0 &&
             results.facialTransformationMatrixes && results.facialTransformationMatrixes.length > 0) {
+          // Face detected - tracking success
+          if (this.onTrackingStatus) {
+            this.onTrackingStatus(TrackingStatus.TrackingSuccess);
+          }
+
+          // Emit landmarks if available
+          if (results.faceLandmarks && results.faceLandmarks.length > 0 && results.faceLandmarks[0] && this.onLandmarks) {
+            this.onLandmarks(results.faceLandmarks[0]);
+          }
+
           this.processTrackingResults(results);
+        } else {
+          // No face detected - tracking but no face
+          if (this.onTrackingStatus) {
+            this.onTrackingStatus(TrackingStatus.TrackingNoFace);
+          }
         }
       } catch (error) {
         console.error('[MediaPipe] Error processing frame:', error);
+        // Error during processing - notify tracking no face status
+        if (this.onTrackingStatus) {
+          this.onTrackingStatus(TrackingStatus.TrackingNoFace);
+        }
       }
     }
 
