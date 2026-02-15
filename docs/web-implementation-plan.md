@@ -120,7 +120,7 @@ async function startVideoSource() {
     };
     videoFileInput.click();
   } else if (source === 'test-data') {
-    video.src = './test-data/sample-face.mp4';
+    video.src = './test-data/sample.mp4';  // 利用可能: 顔を隠す時間帯あり（トラッキングロステスト用）
     video.loop = true;
     video.play();
   }
@@ -143,7 +143,10 @@ async function startVideoSource() {
 - ✅ カメラ権限を毎回取得する必要がない
 - ✅ 同じ映像で値を検証できる
 
-**注意**: test-data/フォルダには各自で顔が映った動画を配置してください（gitignore対象）
+**利用可能なテストデータ**:
+- `test-data/sample.mp4` が利用可能（顔を隠す時間帯を含む。トラッキングロス時の動作確認用）
+
+**注意**: test-data/フォルダには各自で顔が映った動画を追加配置できます（gitignore対象）
 
 ---
 
