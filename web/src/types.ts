@@ -83,3 +83,32 @@ export interface EulerAngles {
   yaw: number;   // left/right rotation
   roll: number;  // tilt rotation
 }
+
+/**
+ * WebRTC connection state
+ */
+export enum WebRTCConnectionState {
+  Disconnected = 'disconnected',
+  Connecting = 'connecting',
+  Connected = 'connected',
+  Failed = 'failed'
+}
+
+/**
+ * WebRTC DataChannel state
+ */
+export enum WebRTCDataChannelState {
+  Connecting = 'connecting',
+  Open = 'open',
+  Closing = 'closing',
+  Closed = 'closed'
+}
+
+/**
+ * Signaling data for manual SDP exchange (Phase 1)
+ */
+export interface SignalingData {
+  type: 'offer' | 'answer' | 'ice-candidate';
+  sdp?: string;
+  candidate?: RTCIceCandidateInit;
+}
