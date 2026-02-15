@@ -39,20 +39,23 @@
 
 | オフセット | サイズ | データ型 | 説明 |
 |----------|--------|---------|------|
-| 0x00     | 4 bytes | float32 | Position X |
-| 0x04     | 4 bytes | float32 | Position Y |
-| 0x08     | 4 bytes | float32 | Position Z |
-| 0x0C     | 4 bytes | float32 | Rotation X (Quaternion) |
-| 0x10     | 4 bytes | float32 | Rotation Y (Quaternion) |
-| 0x14     | 4 bytes | float32 | Rotation Z (Quaternion) |
-| 0x18     | 4 bytes | float32 | Rotation W (Quaternion) |
-| 0x1C     | 52 bytes | uint8[52] | BlendShapes[0]〜[51] |
-| **合計** | **80 bytes** | - | - |
+| 0x00     | 1 byte  | uint8   | Protocol Version (Major) |
+| 0x01     | 1 byte  | uint8   | Protocol Version (Minor) |
+| 0x02     | 1 byte  | uint8   | Protocol Version (Build/Patch) |
+| 0x03     | 1 byte  | uint8   | Reserved (将来の拡張用、現在は0) |
+| 0x04     | 4 bytes | float32 | Position X |
+| 0x08     | 4 bytes | float32 | Position Y |
+| 0x0C     | 4 bytes | float32 | Position Z |
+| 0x10     | 4 bytes | float32 | Rotation X (Quaternion) |
+| 0x14     | 4 bytes | float32 | Rotation Y (Quaternion) |
+| 0x18     | 4 bytes | float32 | Rotation Z (Quaternion) |
+| 0x1C     | 4 bytes | float32 | Rotation W (Quaternion) |
+| 0x20     | 52 bytes | uint8[52] | BlendShapes[0]〜[51] |
+| **合計** | **84 bytes** | - | - |
 
 #### エンディアン
 
 - **リトルエンディアン** (x86/x64, ARM標準)
-- JavaScriptの`DataView`およびC#の`BitConverter`はプラットフォームのネイティブエンディアンを使用
 
 #### WebSocketメッセージタイプ
 
@@ -61,24 +64,30 @@
 #### 実装例 (JavaScript送信側)
 
 ```javascript
-const buffer = new ArrayBuffer(80);
+const buffer = new ArrayBuffer(84);
 const view = new DataView(buffer);
-
-// Position (bytes 0-11)
-view.setFloat32(0, posX, true);  // true = little-endian
-view.setFloat32(4, posY, true);
-view.setFloat32(8, posZ, true);
-
-// Rotation (bytes 12-27)
-view.setFloat32(12, rotX, true);
-view.setFloat32(16, rotY, true);
-view.setFloat32(20, rotZ, true);
-view.setFloat32(24, rotW, true);
-
-// BlendShapes (bytes 28-79)
 const uint8View = new Uint8Array(buffer);
+
+// Version (bytes 0-3)
+uint8View[0] = 1;  // Major
+uint8View[1] = 0;  // Minor
+uint8View[2] = 0;  // Build/Patch
+uint8View[3] = 0;  // Reserved
+
+// Position (bytes 4-15)
+view.setFloat32(4, posX, true);   // true = little-endian
+view.setFloat32(8, posY, true);
+view.setFloat32(12, posZ, true);
+
+// Rotation (bytes 16-31)
+view.setFloat32(16, rotX, true);
+view.setFloat32(20, rotY, true);
+view.setFloat32(24, rotZ, true);
+view.setFloat32(28, rotW, true);
+
+// BlendShapes (bytes 32-83)
 for (let i = 0; i < 52; i++) {
-    uint8View[28 + i] = blendShapes[i]; // 0-255
+    uint8View[32 + i] = blendShapes[i]; // 0-255
 }
 
 websocket.send(buffer);
@@ -87,16 +96,26 @@ websocket.send(buffer);
 #### 実装例 (C#受信側)
 
 ```csharp
-var px = BitConverter.ToSingle(data, 0);
-var py = BitConverter.ToSingle(data, 4);
-var pz = BitConverter.ToSingle(data, 8);
-var rx = BitConverter.ToSingle(data, 12);
-var ry = BitConverter.ToSingle(data, 16);
-var rz = BitConverter.ToSingle(data, 20);
-var rw = BitConverter.ToSingle(data, 24);
+// Version (bytes 0-3)
+byte major = data[0];
+byte minor = data[1];
+byte build = data[2];
+// byte reserved = data[3];
 
+// Position (bytes 4-15)
+var px = BitConverter.ToSingle(data, 4);
+var py = BitConverter.ToSingle(data, 8);
+var pz = BitConverter.ToSingle(data, 12);
+
+// Rotation (bytes 16-31)
+var rx = BitConverter.ToSingle(data, 16);
+var ry = BitConverter.ToSingle(data, 20);
+var rz = BitConverter.ToSingle(data, 24);
+var rw = BitConverter.ToSingle(data, 28);
+
+// BlendShapes (bytes 32-83)
 byte[] blendShapes = new byte[52];
-Array.Copy(data, 28, blendShapes, 0, 52);
+Array.Copy(data, 32, blendShapes, 0, 52);
 ```
 
 ---
@@ -109,6 +128,7 @@ Array.Copy(data, 28, blendShapes, 0, 52);
 
 ```json
 {
+  "version": "1.0.0",
   "headPose": {
     "px": <float>,
     "py": <float>,
@@ -129,6 +149,7 @@ Array.Copy(data, 28, blendShapes, 0, 52);
 
 #### フィールド説明
 
+- `version`: プロトコルバージョン文字列 (string, 形式: "major.minor.patch")
 - `headPose.px/py/pz`: 頭部位置 (float)
 - `headPose.rx/ry/rz/rw`: 頭部回転クォータニオン (float)
 - `blendShape.<name>`: ブレンドシェイプ値 (int, 0-255)
@@ -147,6 +168,7 @@ Array.Copy(data, 28, blendShapes, 0, 52);
 
 ```javascript
 const data = {
+  version: "1.0.0",
   headPose: {
     px: 0.123, py: -0.456, pz: 0.789,
     rx: 0.0, ry: 0.0, rz: 0.0, rw: 1.0
@@ -298,46 +320,65 @@ JSON形式では、上記のブレンドシェイプ名をそのままキーと�
 受信側アプリケーションは以下を検証すべきです:
 
 #### Compressed形式
-- データサイズが正確に80バイトであること
+- データサイズが正確に84バイトであること
+- プロトコルバージョンが互換性のある範囲内であること
 - クォータニオンが正規化されていること（許容誤差あり）
 - ブレンドシェイプ値が0〜255の範囲内であること
 
 #### Readable形式
 - JSONパース可能であること
-- 必須フィールド (`headPose`, `blendShape`) が存在すること
+- 必須フィールド (`version`, `headPose`, `blendShape`) が存在すること
+- バージョン文字列が "major.minor.patch" 形式であること
 - 数値型が適切であること
 
 ### エラー時の動作
 
-- **不正なデータ**: ログ出力し、そのフレームを破棄
-- **WebSocket切断**: 再接続待機状態に遷移
+- **不正なデータ**: ログ出力し、そのフレームを破棄（通信は継続）
 - **パフォーマンス低下**: フレームスキップ等で対応
 
 ---
 
 ## バージョニング
 
+### バージョン情報の埋め込み
+
+#### Compressed形式
+
+データの先頭4バイトにプロトコルバージョン情報が埋め込まれています:
+
+- **Byte 0**: Major Version (メジャーバージョン)
+- **Byte 1**: Minor Version (マイナーバージョン)
+- **Byte 2**: Build/Patch Version (ビルド/パッチバージョン)
+- **Byte 3**: Reserved (予約領域、将来の拡張用)
+
+#### Readable形式
+
+JSON構造の `version` フィールドに文字列形式でバージョンが含まれます:
+
+- **形式**: `"major.minor.patch"` (例: `"1.0.0"`)
+- **必須**: はい（バージョン1.0.0以降）
+
 ### 現在のバージョン
 
-- **プロトコルバージョン**: 1.0
+- **プロトコルバージョン**: 1.0.0
+- **Compressed形式バージョンフィールド**: `[1, 0, 0, 0]`
 - **策定日**: 2026-02-15
+
+### バージョン互換性ルール
+
+受信側アプリケーションは以下のルールでバージョン互換性を判定すべきです:
+
+- **Major Version不一致**: 互換性なし、エラーとして処理
+- **Minor Version差**: 後方互換、新機能は無視して処理可能
+- **Build/Patch差**: 完全互換、バグ修正のみ
 
 ### 将来の拡張
 
 以下の機能追加が検討されています:
 
-- ハンドトラッキングデータの追加
-- 複数フォーマットの自動判別
-- 圧縮アルゴリズムの適用
-- バージョン情報のヘッダー追加
-
-### 後方互換性
-
-フォーマット変更時は以下を考慮します:
-
-- メジャーバージョン変更: 非互換な変更
-- マイナーバージョン変更: 後方互換な機能追加
-- パッチバージョン: ドキュメント修正・明確化
+- ハンドトラッキングデータの追加 (Major Version 2.x)
+- 圧縮アルゴリズムの適用 (Minor Version x.y)
+- Reserved領域を利用した拡張フラグ
 
 ---
 
