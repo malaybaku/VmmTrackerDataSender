@@ -365,5 +365,98 @@ function stopTracking() {
   // TODO: Stop MediaPipe processing
 }
 
+// Debug mode auto-start (development only)
+async function autoStartDebugMode() {
+  // Only in development environment
+  if (!import.meta.env.DEV) {
+    return;
+  }
+
+  try {
+    // Check if debug video exists
+    const debugVideoPath = '/test-data/debug-video.mp4';
+    const response = await fetch(debugVideoPath, { method: 'HEAD' });
+
+    if (!response.ok) {
+      // Debug video not found, skip auto-start
+      console.log('[DEBUG] No debug-video.mp4 found, skipping auto-start');
+      return;
+    }
+
+    console.log('[DEBUG] Auto-starting with debug-video.mp4...');
+    updateStatus('Loading debug video...', 'normal');
+
+    // 1. Load debug video
+    video.src = debugVideoPath;
+    video.loop = true;
+    await video.play();
+    console.log('[DEBUG] Video loaded and playing');
+    updateStatus('Debug video loaded', 'normal');
+
+    // Disable video source controls
+    startVideoBtn.disabled = true;
+    startTrackingBtn.disabled = false;
+
+    // Small delay to ensure video is ready
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 2. Connect to WebSocket
+    const wsUrl = serverUrlInput.value.trim() || 'ws://localhost:9090';
+    console.log('[DEBUG] Connecting to WebSocket:', wsUrl);
+
+    websocket = new WebSocket(wsUrl);
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('WebSocket connection timeout')), 5000);
+
+      websocket!.onopen = () => {
+        clearTimeout(timeout);
+        console.log('[DEBUG] WebSocket connected');
+        updateStatus('Connected to server (auto)', 'connected');
+        connectBtn.textContent = 'Disconnect';
+        resolve();
+      };
+
+      websocket!.onerror = (err) => {
+        clearTimeout(timeout);
+        console.error('[DEBUG] WebSocket connection failed:', err);
+        reject(err);
+      };
+    });
+
+    // Set up WebSocket close handler
+    websocket.onclose = (event) => {
+      console.log('WebSocket closed:', event.code, event.reason);
+      updateStatus('Disconnected from server', 'normal');
+      connectBtn.textContent = 'Connect';
+      websocket = null;
+    };
+
+    // Small delay before starting tracking
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // 3. Start tracking
+    console.log('[DEBUG] Starting tracking...');
+    await startTracking();
+    startTrackingBtn.textContent = 'Stop Tracking';
+
+    console.log('[DEBUG] Auto-start complete! 🎉');
+    updateStatus('Debug mode: Tracking active', 'connected');
+
+  } catch (err) {
+    console.log('[DEBUG] Auto-start failed:', err);
+    updateStatus('Debug auto-start failed - use manual controls', 'error');
+
+    // Clean up on failure
+    if (websocket) {
+      websocket.close();
+      websocket = null;
+    }
+  }
+}
+
 // Initialize
 updateStatus('Ready - Start camera and connect to server', 'normal');
+
+// Auto-start debug mode if in development
+autoStartDebugMode();

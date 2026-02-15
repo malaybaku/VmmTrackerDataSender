@@ -7,6 +7,13 @@ test-data/*.webm
 test-data/*.mov
 test-data/*.avi
 
+# Web debug video files
+web/test-data/*.mp4
+web/test-data/*.webm
+web/test-data/*.mov
+web/test-data/*.avi
+!web/test-data/.gitkeep
+
 # Node.js / npm
 node_modules/
 npm-debug.log*

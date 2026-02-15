@@ -60,6 +60,9 @@ web/
 ├── src/
 │   ├── main.ts           # Application entry point
 │   └── vite-env.d.ts     # Vite type definitions
+├── test-data/            # Debug video files (gitignored)
+│   ├── .gitkeep          # Directory placeholder
+│   └── debug-video.mp4   # Auto-loaded in dev mode (not in repo)
 ├── index.html            # HTML template
 ├── package.json          # Dependencies and scripts
 ├── tsconfig.json         # TypeScript configuration
@@ -67,14 +70,39 @@ web/
 └── README.md
 ```
 
-## TODO
+## Debug Mode Setup (Development Only)
 
-- [ ] Implement MediaPipe Face Landmarker initialization
-- [ ] Implement video frame processing
-- [ ] Implement head pose calculation
-- [ ] Implement BlendShape data extraction
-- [ ] Implement Readable format serialization (JSON)
-- [ ] Implement Compressed format serialization (Binary)
-- [ ] Implement WebSocket data transmission
-- [ ] Add error handling and reconnection logic
-- [ ] Add performance monitoring (FPS counter)
+For faster development iteration, the application supports **auto-start mode** in development environment (`npm run dev`).
+
+### How to Enable
+
+1. Place a video file at `web/test-data/debug-video.mp4`
+2. Start development server: `npm run dev`
+3. The application will automatically:
+   - Load the debug video
+   - Connect to `ws://localhost:9090`
+   - Start tracking
+
+### How to Disable
+
+- Simply remove `web/test-data/debug-video.mp4`
+- Or use production build (`npm run build`)
+
+### Notes
+
+- Debug mode **only works in development** (`npm run dev`)
+- Production builds (GitHub Pages) are **not affected**
+- The debug video file is **gitignored** (not tracked in repository)
+- You can use any video file with a face (mp4, webm, mov, avi)
+
+### Example Setup
+
+```bash
+# Copy your test video
+cp /path/to/your/face-video.mp4 web/test-data/debug-video.mp4
+
+# Start dev server with auto-start
+npm run dev
+
+# The app will automatically start tracking!
+```
