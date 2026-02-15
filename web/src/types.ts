@@ -7,6 +7,7 @@
  */
 export enum VideoSourceState {
   None = 'None',
+  Busy = 'Busy',
   CameraRunning = 'CameraRunning',
   VideoRunning = 'VideoRunning',
   VideoStopped = 'VideoStopped'

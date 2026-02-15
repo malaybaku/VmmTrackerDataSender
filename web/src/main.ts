@@ -115,6 +115,9 @@ connectBtn.addEventListener('click', async () => {
 
 // Start Camera
 startCameraBtn.addEventListener('click', async () => {
+  // Set busy state to prevent double-click
+  uiManager.updateButtonStates(VideoSourceState.Busy);
+
   try {
     uiManager.updateStatus('Starting camera...', 'normal');
     await videoSourceManager.startCamera();
@@ -132,6 +135,7 @@ startCameraBtn.addEventListener('click', async () => {
     );
     videoSourceManager.stop();
   }
+  // Note: Button states are updated via videoSourceManager.onStateChange
 });
 
 // Start Video File
@@ -139,6 +143,9 @@ startVideoBtn.addEventListener('click', () => {
   videoFileInput.onchange = async (e) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
+
+    // Set busy state to prevent double-click
+    uiManager.updateButtonStates(VideoSourceState.Busy);
 
     try {
       uiManager.updateStatus('Loading video file...', 'normal');
@@ -158,12 +165,16 @@ startVideoBtn.addEventListener('click', () => {
       videoSourceManager.stop();
       videoSourceManager.clearVideoReferences();
     }
+    // Note: Button states are updated via videoSourceManager.onStateChange
   };
   videoFileInput.click();
 });
 
 // Restart Video
 restartVideoBtn.addEventListener('click', async () => {
+  // Set busy state to prevent double-click
+  uiManager.updateButtonStates(VideoSourceState.Busy);
+
   try {
     uiManager.updateStatus('Restarting video...', 'normal');
     await videoSourceManager.restartVideo();
@@ -179,23 +190,35 @@ restartVideoBtn.addEventListener('click', async () => {
       `Failed to restart video: ${err instanceof Error ? err.message : String(err)}`,
       'error'
     );
+    // Restore VideoStopped state on error
+    uiManager.updateButtonStates(VideoSourceState.VideoStopped);
   }
+  // Note: On success, button states are updated via videoSourceManager.onStateChange
 });
 
 // Stop Tracking
 stopTrackingBtn.addEventListener('click', () => {
-  mediapipeManager.stopTracking();
+  // Set busy state to prevent double-click
+  uiManager.updateButtonStates(VideoSourceState.Busy);
 
-  const state = videoSourceManager.getState();
-  if (state === VideoSourceState.CameraRunning) {
-    // Stop camera completely
-    videoSourceManager.stop();
-    uiManager.updateStatus('Camera stopped', 'normal');
-  } else if (state === VideoSourceState.VideoRunning) {
-    // Pause video
-    videoSourceManager.pause();
-    uiManager.updateStatus('Video paused', 'normal');
+  try {
+    mediapipeManager.stopTracking();
+
+    const state = videoSourceManager.getState();
+    if (state === VideoSourceState.CameraRunning) {
+      // Stop camera completely
+      videoSourceManager.stop();
+      uiManager.updateStatus('Camera stopped', 'normal');
+    } else if (state === VideoSourceState.VideoRunning) {
+      // Pause video
+      videoSourceManager.pause();
+      uiManager.updateStatus('Video paused', 'normal');
+    }
+  } catch (err) {
+    console.error('[Main] Failed to stop tracking:', err);
+    uiManager.updateStatus('Failed to stop tracking', 'error');
   }
+  // Note: Button states are updated via videoSourceManager.onStateChange
 });
 
 // ============================================================================

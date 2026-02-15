@@ -51,6 +51,14 @@ export class UIManager {
         this.stopTrackingBtn.disabled = true;
         break;
 
+      case VideoSourceState.Busy:
+        // Disable all buttons during processing
+        this.startCameraBtn.disabled = true;
+        this.startVideoBtn.disabled = true;
+        this.restartVideoBtn.disabled = true;
+        this.stopTrackingBtn.disabled = true;
+        break;
+
       case VideoSourceState.CameraRunning:
         this.startCameraBtn.disabled = true;
         this.startVideoBtn.disabled = true;
