@@ -11,7 +11,7 @@ class Program
         Console.WriteLine();
 
         // Parse command line arguments
-        int port = 8080;
+        int port = 9090;
         string format = "compressed";
 
         for (int i = 0; i < args.Length; i++)
