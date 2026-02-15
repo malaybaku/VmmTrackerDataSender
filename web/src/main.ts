@@ -31,6 +31,14 @@ function updateStatus(message: string, type: 'normal' | 'connected' | 'error' = 
   if (type === 'error') statusSpan.classList.add('error');
 }
 
+// Callback for receiving tracking results from MediaPipe
+function onTrackingResult(result: FaceLandmarkerResult) {
+  if (result.faceBlendshapes && result.faceBlendshapes.length > 0 &&
+      result.facialTransformationMatrixes && result.facialTransformationMatrixes.length > 0) {
+    sendTrackingData(result);
+  }
+}
+
 // Initialize MediaPipe Face Landmarker
 async function initializeMediaPipe() {
   try {
@@ -51,8 +59,9 @@ async function initializeMediaPipe() {
       },
       outputFaceBlendshapes: true,
       outputFacialTransformationMatrixes: true,
-      runningMode: "VIDEO",
-      numFaces: 1
+      runningMode: "LIVE_STREAM",
+      numFaces: 1,
+      resultListener: onTrackingResult
     });
     console.log('Face Landmarker created successfully');
 
@@ -77,7 +86,8 @@ startVideoBtn.addEventListener('click', async () => {
         video: {
           facingMode: 'user',
           width: { ideal: 1280 },
-          height: { ideal: 720 }
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, max: 30 }
         }
       });
       video.srcObject = mediaStream;
@@ -208,13 +218,8 @@ function processVideoFrame() {
     lastVideoTime = video.currentTime;
 
     try {
-      const results = faceLandmarker.detectForVideo(video, performance.now());
-
-      if (results.faceBlendshapes && results.faceBlendshapes.length > 0 &&
-          results.facialTransformationMatrixes && results.facialTransformationMatrixes.length > 0) {
-        sendTrackingData(results);
-      }
-      // Note: No face detected is normal (e.g., when face is hidden), so no warning log
+      // Use detectAsync for LIVE_STREAM mode - results are received via callback
+      faceLandmarker.detectAsync(video, performance.now());
     } catch (error) {
       console.error('Error processing frame:', error);
     }
