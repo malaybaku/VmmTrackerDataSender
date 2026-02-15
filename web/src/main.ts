@@ -5,23 +5,35 @@
 
 import { FaceLandmarker, FilesetResolver, FaceLandmarkerResult } from '@mediapipe/tasks-vision';
 
+// Video Source State
+enum VideoSourceState {
+  None = 'None',
+  CameraRunning = 'CameraRunning',
+  VideoRunning = 'VideoRunning',
+  VideoStopped = 'VideoStopped'
+}
+
 // UI Elements
 const video = document.getElementById('video') as HTMLVideoElement;
 const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
 const formatSelect = document.getElementById('format-select') as HTMLSelectElement;
-const videoSourceSelect = document.getElementById('video-source-select') as HTMLSelectElement;
 const connectBtn = document.getElementById('connect-btn') as HTMLButtonElement;
+const startCameraBtn = document.getElementById('start-camera-btn') as HTMLButtonElement;
 const startVideoBtn = document.getElementById('start-video-btn') as HTMLButtonElement;
+const restartVideoBtn = document.getElementById('restart-video-btn') as HTMLButtonElement;
+const stopTrackingBtn = document.getElementById('stop-tracking-btn') as HTMLButtonElement;
 const videoFileInput = document.getElementById('video-file-input') as HTMLInputElement;
-const startTrackingBtn = document.getElementById('start-tracking-btn') as HTMLButtonElement;
 const statusSpan = document.getElementById('status') as HTMLSpanElement;
 
 // State
+let videoSourceState: VideoSourceState = VideoSourceState.None;
 let mediaStream: MediaStream | null = null;
 let websocket: WebSocket | null = null;
 let isTracking = false;
 let faceLandmarker: FaceLandmarker | null = null;
 let lastVideoTime = -1;
+let currentVideoFile: File | null = null; // For restart functionality
+let currentVideoUrl: string | null = null; // For debug video restart
 
 // Update status display
 function updateStatus(message: string, type: 'normal' | 'connected' | 'error' = 'normal') {
@@ -29,6 +41,47 @@ function updateStatus(message: string, type: 'normal' | 'connected' | 'error' = 
   statusSpan.className = 'status';
   if (type === 'connected') statusSpan.classList.add('connected');
   if (type === 'error') statusSpan.classList.add('error');
+}
+
+// Update button states based on video source state
+function updateButtonStates() {
+  switch (videoSourceState) {
+    case VideoSourceState.None:
+      startCameraBtn.disabled = false;
+      startVideoBtn.disabled = false;
+      restartVideoBtn.disabled = true;
+      stopTrackingBtn.disabled = true;
+      break;
+
+    case VideoSourceState.CameraRunning:
+      startCameraBtn.disabled = true;
+      startVideoBtn.disabled = true;
+      restartVideoBtn.disabled = true;
+      stopTrackingBtn.disabled = false;
+      break;
+
+    case VideoSourceState.VideoRunning:
+      startCameraBtn.disabled = true;
+      startVideoBtn.disabled = true;
+      restartVideoBtn.disabled = true;
+      stopTrackingBtn.disabled = false;
+      break;
+
+    case VideoSourceState.VideoStopped:
+      startCameraBtn.disabled = false;
+      startVideoBtn.disabled = false;
+      restartVideoBtn.disabled = false;
+      stopTrackingBtn.disabled = true;
+      break;
+  }
+
+  console.log(`[STATE] Updated to: ${videoSourceState}`);
+}
+
+// Set video source state and update UI
+function setVideoSourceState(newState: VideoSourceState) {
+  videoSourceState = newState;
+  updateButtonStates();
 }
 
 // Initialize MediaPipe Face Landmarker
@@ -66,59 +119,142 @@ async function initializeMediaPipe() {
   }
 }
 
-// Start video source (camera or file)
-startVideoBtn.addEventListener('click', async () => {
-  const source = videoSourceSelect.value;
-
+// Start Camera button
+startCameraBtn.addEventListener('click', async () => {
   try {
     // Clear previous video sources
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(track => track.stop());
-      mediaStream = null;
-    }
-    video.srcObject = null;
-    video.src = '';
-    video.load();
+    stopVideoSource();
 
-    if (source === 'camera') {
-      // Camera source
-      mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30, max: 30 }
-        }
-      });
-      video.srcObject = mediaStream;
-      await video.play();
-      updateStatus('Camera started', 'normal');
-    } else if (source === 'file') {
-      // File selection
-      videoFileInput.onchange = async (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          video.src = URL.createObjectURL(file);
-          video.loop = true;
-          await video.play();
-          updateStatus('Video file loaded', 'normal');
+    // Start camera
+    updateStatus('Starting camera...', 'normal');
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'user',
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30, max: 30 }
+      }
+    });
+    video.srcObject = mediaStream;
+    await video.play();
+    console.log('Camera started');
 
-          // Enable tracking button after video is loaded
-          startVideoBtn.disabled = true;
-          startTrackingBtn.disabled = false;
-        }
-      };
-      videoFileInput.click();
-      return; // Don't disable button yet, wait for file selection
-    }
+    // Initialize MediaPipe and start tracking
+    updateStatus('Starting tracking...', 'normal');
+    await startTracking();
 
-    startVideoBtn.disabled = true;
-    startTrackingBtn.disabled = false;
+    setVideoSourceState(VideoSourceState.CameraRunning);
+    updateStatus('Camera tracking started', 'connected');
+    console.log('Camera tracking successfully started');
   } catch (err) {
-    console.error('Failed to start video source:', err);
-    updateStatus(`Failed to start ${source}`, 'error');
+    console.error('Failed to start camera tracking:', err);
+    updateStatus(`Failed to start camera: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    stopVideoSource();
+    setVideoSourceState(VideoSourceState.None);
   }
 });
+
+// Start Video button
+startVideoBtn.addEventListener('click', async () => {
+  videoFileInput.onchange = async (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+
+    try {
+      // Clear previous video sources
+      stopVideoSource();
+
+      // Load video file
+      updateStatus('Loading video file...', 'normal');
+      currentVideoFile = file;
+      currentVideoUrl = null;
+      video.src = URL.createObjectURL(file);
+      video.loop = true;
+      await video.play();
+      console.log('Video file loaded and playing');
+
+      // Initialize MediaPipe and start tracking
+      updateStatus('Starting tracking...', 'normal');
+      await startTracking();
+
+      setVideoSourceState(VideoSourceState.VideoRunning);
+      updateStatus('Video tracking started', 'connected');
+      console.log('Video tracking successfully started');
+    } catch (err) {
+      console.error('Failed to start video tracking:', err);
+      updateStatus(`Failed to start video: ${err instanceof Error ? err.message : String(err)}`, 'error');
+      stopVideoSource();
+      currentVideoFile = null;
+      currentVideoUrl = null;
+      setVideoSourceState(VideoSourceState.None);
+    }
+  };
+  videoFileInput.click();
+});
+
+// Restart Video button
+restartVideoBtn.addEventListener('click', async () => {
+  if (!currentVideoFile && !currentVideoUrl) {
+    console.error('No video file to restart');
+    updateStatus('No video to restart', 'error');
+    return;
+  }
+
+  try {
+    // Reload the same video file or URL
+    updateStatus('Restarting video...', 'normal');
+    if (currentVideoFile) {
+      video.src = URL.createObjectURL(currentVideoFile);
+      console.log('Reloading video file');
+    } else if (currentVideoUrl) {
+      video.src = currentVideoUrl;
+      console.log('Reloading video URL:', currentVideoUrl);
+    }
+    video.loop = true;
+    await video.play();
+    console.log('Video playing');
+
+    // Initialize MediaPipe and start tracking
+    updateStatus('Starting tracking...', 'normal');
+    await startTracking();
+
+    setVideoSourceState(VideoSourceState.VideoRunning);
+    updateStatus('Video tracking restarted', 'connected');
+    console.log('Video tracking successfully restarted');
+  } catch (err) {
+    console.error('Failed to restart video tracking:', err);
+    updateStatus(`Failed to restart video: ${err instanceof Error ? err.message : String(err)}`, 'error');
+    setVideoSourceState(VideoSourceState.VideoStopped);
+  }
+});
+
+// Stop Tracking button
+stopTrackingBtn.addEventListener('click', () => {
+  stopTracking();
+
+  if (videoSourceState === VideoSourceState.CameraRunning) {
+    // Stop camera completely
+    stopVideoSource();
+    setVideoSourceState(VideoSourceState.None);
+    updateStatus('Camera stopped', 'normal');
+  } else if (videoSourceState === VideoSourceState.VideoRunning) {
+    // Pause video
+    video.pause();
+    setVideoSourceState(VideoSourceState.VideoStopped);
+    updateStatus('Video paused', 'normal');
+  }
+});
+
+// Helper: Stop video source
+function stopVideoSource() {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(track => track.stop());
+    mediaStream = null;
+  }
+  video.srcObject = null;
+  video.src = '';
+  video.pause();
+}
 
 // Connect to WebSocket server
 connectBtn.addEventListener('click', () => {
@@ -164,18 +300,7 @@ connectBtn.addEventListener('click', () => {
   }
 });
 
-// Start tracking
-startTrackingBtn.addEventListener('click', () => {
-  console.log('Start Tracking button clicked, isTracking:', isTracking);
-  if (!isTracking) {
-    startTracking();
-    startTrackingBtn.textContent = 'Stop Tracking';
-  } else {
-    stopTracking();
-    startTrackingBtn.textContent = 'Start Tracking';
-  }
-});
-
+// Start tracking (returns true on success, throws on failure)
 async function startTracking() {
   console.log('startTracking() called');
 
@@ -186,8 +311,7 @@ async function startTracking() {
       console.log('Video playback started');
     } catch (err) {
       console.error('Failed to start video playback:', err);
-      updateStatus('Failed to start video playback', 'error');
-      return;
+      throw new Error('Failed to start video playback: ' + err);
     }
   }
 
@@ -197,20 +321,20 @@ async function startTracking() {
     const success = await initializeMediaPipe();
     if (!success) {
       console.log('MediaPipe initialization failed');
-      return;
+      throw new Error('MediaPipe initialization failed');
     }
   } else {
     console.log('faceLandmarker already initialized');
   }
 
   isTracking = true;
-  updateStatus('Tracking started', 'connected');
 
   // Start processing video frames
   console.log('Starting video frame processing');
   processVideoFrame();
 
   console.log('Tracking started with format:', formatSelect.value);
+  return true;
 }
 
 // Process video frame and send tracking data
@@ -401,10 +525,9 @@ async function autoStartDebugMode() {
     // 1. Load debug video (without playing - autoplay policy)
     video.src = debugVideoPath;
     video.loop = true;
-    console.log('[DEBUG] Video loaded (not playing yet)');
-
-    // Enable tracking button (keep Start Video enabled for camera/file switching)
-    startTrackingBtn.disabled = false;
+    currentVideoUrl = debugVideoPath;
+    currentVideoFile = null;
+    console.log('[DEBUG] Video loaded (not playing)');
 
     // 2. Connect to WebSocket
     const wsUrl = serverUrlInput.value.trim() || 'ws://localhost:9090';
@@ -418,7 +541,6 @@ async function autoStartDebugMode() {
       websocket!.onopen = () => {
         clearTimeout(timeout);
         console.log('[DEBUG] WebSocket connected');
-        updateStatus('Debug ready - Click "Start Tracking" to begin', 'connected');
         connectBtn.textContent = 'Disconnect';
         resolve();
       };
@@ -438,7 +560,10 @@ async function autoStartDebugMode() {
       websocket = null;
     };
 
-    console.log('[DEBUG] Auto-start complete! Click "Start Tracking" to begin 🎉');
+    // Set to VideoStopped state (ready to start with Restart Video button)
+    setVideoSourceState(VideoSourceState.VideoStopped);
+    updateStatus('Debug ready - Click "Restart Video" to begin', 'connected');
+    console.log('[DEBUG] Auto-start complete! Click "Restart Video" to begin 🎉');
 
   } catch (err) {
     console.log('[DEBUG] Auto-start failed:', err);
@@ -451,16 +576,17 @@ async function autoStartDebugMode() {
     }
 
     // Restore UI to initial state
-    video.src = '';
-    video.srcObject = null;
-    startVideoBtn.disabled = false;
-    startTrackingBtn.disabled = true;
+    stopVideoSource();
+    currentVideoUrl = null;
+    currentVideoFile = null;
+    setVideoSourceState(VideoSourceState.None);
     connectBtn.textContent = 'Connect';
   }
 }
 
 // Initialize
-updateStatus('Ready - Start camera and connect to server', 'normal');
+setVideoSourceState(VideoSourceState.None);
+updateStatus('Ready - Click "Start Camera" or "Start Video"', 'normal');
 
 // Auto-start debug mode if in development
 autoStartDebugMode();
