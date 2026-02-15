@@ -37,7 +37,6 @@ const webrtcStatus = document.getElementById('webrtc-status') as HTMLSpanElement
 const previewModeSelect = document.getElementById('preview-mode-select') as HTMLSelectElement;
 const startCameraBtn = document.getElementById('start-camera-btn') as HTMLButtonElement;
 const startVideoBtn = document.getElementById('start-video-btn') as HTMLButtonElement;
-const restartVideoBtn = document.getElementById('restart-video-btn') as HTMLButtonElement;
 const stopTrackingBtn = document.getElementById('stop-tracking-btn') as HTMLButtonElement;
 const videoFileInput = document.getElementById('video-file-input') as HTMLInputElement;
 const statusSpan = document.getElementById('status') as HTMLSpanElement;
@@ -53,7 +52,6 @@ const uiManager = new UIManager(
   statusSpan,
   startCameraBtn,
   startVideoBtn,
-  restartVideoBtn,
   stopTrackingBtn
 );
 const previewRenderer = new PreviewRenderer(previewCanvas, previewOverlay, video);
@@ -343,32 +341,6 @@ startVideoBtn.addEventListener('click', () => {
     // Note: Button states are updated via videoSourceManager.onStateChange
   };
   videoFileInput.click();
-});
-
-// Restart Video
-restartVideoBtn.addEventListener('click', async () => {
-  // Set busy state to prevent double-click
-  uiManager.updateButtonStates(VideoSourceState.Busy);
-
-  try {
-    uiManager.updateStatus('Restarting video...', 'normal');
-    await videoSourceManager.restartVideo();
-
-    uiManager.updateStatus('Starting tracking...', 'normal');
-    await mediapipeManager.startTracking(video);
-
-    uiManager.updateStatus('Video tracking restarted', 'connected');
-    console.log('[Main] Video tracking successfully restarted');
-  } catch (err) {
-    console.error('[Main] Failed to restart video tracking:', err);
-    uiManager.updateStatus(
-      `Failed to restart video: ${err instanceof Error ? err.message : String(err)}`,
-      'error'
-    );
-    // Restore VideoStopped state on error
-    uiManager.updateButtonStates(VideoSourceState.VideoStopped);
-  }
-  // Note: On success, button states are updated via videoSourceManager.onStateChange
 });
 
 // Stop Tracking

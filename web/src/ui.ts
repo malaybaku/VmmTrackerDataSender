@@ -9,20 +9,17 @@ export class UIManager {
   private readonly statusSpan: HTMLSpanElement;
   private readonly startCameraBtn: HTMLButtonElement;
   private readonly startVideoBtn: HTMLButtonElement;
-  private readonly restartVideoBtn: HTMLButtonElement;
   private readonly stopTrackingBtn: HTMLButtonElement;
 
   constructor(
     statusSpan: HTMLSpanElement,
     startCameraBtn: HTMLButtonElement,
     startVideoBtn: HTMLButtonElement,
-    restartVideoBtn: HTMLButtonElement,
     stopTrackingBtn: HTMLButtonElement
   ) {
     this.statusSpan = statusSpan;
     this.startCameraBtn = startCameraBtn;
     this.startVideoBtn = startVideoBtn;
-    this.restartVideoBtn = restartVideoBtn;
     this.stopTrackingBtn = stopTrackingBtn;
   }
 
@@ -44,7 +41,6 @@ export class UIManager {
       case VideoSourceState.None:
         this.startCameraBtn.disabled = false;
         this.startVideoBtn.disabled = false;
-        this.restartVideoBtn.disabled = true;
         this.stopTrackingBtn.disabled = true;
         break;
 
@@ -52,28 +48,24 @@ export class UIManager {
         // Disable all buttons during processing
         this.startCameraBtn.disabled = true;
         this.startVideoBtn.disabled = true;
-        this.restartVideoBtn.disabled = true;
         this.stopTrackingBtn.disabled = true;
         break;
 
       case VideoSourceState.CameraRunning:
         this.startCameraBtn.disabled = true;
         this.startVideoBtn.disabled = true;
-        this.restartVideoBtn.disabled = true;
         this.stopTrackingBtn.disabled = false;
         break;
 
       case VideoSourceState.VideoRunning:
         this.startCameraBtn.disabled = true;
         this.startVideoBtn.disabled = true;
-        this.restartVideoBtn.disabled = true;
         this.stopTrackingBtn.disabled = false;
         break;
 
       case VideoSourceState.VideoStopped:
         this.startCameraBtn.disabled = false;
         this.startVideoBtn.disabled = false;
-        this.restartVideoBtn.disabled = false;
         this.stopTrackingBtn.disabled = true;
         break;
     }
