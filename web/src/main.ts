@@ -3,17 +3,17 @@
  * Face tracking using MediaPipe and data transmission via WebSocket
  */
 
-import { FaceLandmarker, FilesetResolver, FaceLandmarkerResult } from '@mediapipe/tasks-vision';
+import { VideoSourceState } from './types';
+import { VideoSourceManager } from './videoSource';
+import { MediaPipeManager } from './mediapipe';
+import { WebSocketManager } from './websocket';
+import { UIManager } from './ui';
+import { autoStartDebugMode } from './debug';
 
-// Video Source State
-enum VideoSourceState {
-  None = 'None',
-  CameraRunning = 'CameraRunning',
-  VideoRunning = 'VideoRunning',
-  VideoStopped = 'VideoStopped'
-}
-
+// ============================================================================
 // UI Elements
+// ============================================================================
+
 const video = document.getElementById('video') as HTMLVideoElement;
 const serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
 const formatSelect = document.getElementById('format-select') as HTMLSelectElement;
@@ -25,568 +25,190 @@ const stopTrackingBtn = document.getElementById('stop-tracking-btn') as HTMLButt
 const videoFileInput = document.getElementById('video-file-input') as HTMLInputElement;
 const statusSpan = document.getElementById('status') as HTMLSpanElement;
 
-// State
-let videoSourceState: VideoSourceState = VideoSourceState.None;
-let mediaStream: MediaStream | null = null;
-let websocket: WebSocket | null = null;
-let isTracking = false;
-let faceLandmarker: FaceLandmarker | null = null;
-let lastVideoTime = -1;
-let currentVideoFile: File | null = null; // For restart functionality
-let currentVideoUrl: string | null = null; // For debug video restart
+// ============================================================================
+// Manager Instances
+// ============================================================================
 
-// Update status display
-function updateStatus(message: string, type: 'normal' | 'connected' | 'error' = 'normal') {
-  statusSpan.textContent = message;
-  statusSpan.className = 'status';
-  if (type === 'connected') statusSpan.classList.add('connected');
-  if (type === 'error') statusSpan.classList.add('error');
-}
+const videoSourceManager = new VideoSourceManager(video);
+const mediapipeManager = new MediaPipeManager();
+const websocketManager = new WebSocketManager();
+const uiManager = new UIManager(
+  statusSpan,
+  connectBtn,
+  startCameraBtn,
+  startVideoBtn,
+  restartVideoBtn,
+  stopTrackingBtn
+);
 
-// Update button states based on video source state
-function updateButtonStates() {
-  switch (videoSourceState) {
-    case VideoSourceState.None:
-      startCameraBtn.disabled = false;
-      startVideoBtn.disabled = false;
-      restartVideoBtn.disabled = true;
-      stopTrackingBtn.disabled = true;
-      break;
+// ============================================================================
+// Event Handlers Setup
+// ============================================================================
 
-    case VideoSourceState.CameraRunning:
-      startCameraBtn.disabled = true;
-      startVideoBtn.disabled = true;
-      restartVideoBtn.disabled = true;
-      stopTrackingBtn.disabled = false;
-      break;
+// Video Source State Changes
+videoSourceManager.onStateChange = (newState) => {
+  uiManager.updateButtonStates(newState);
+};
 
-    case VideoSourceState.VideoRunning:
-      startCameraBtn.disabled = true;
-      startVideoBtn.disabled = true;
-      restartVideoBtn.disabled = true;
-      stopTrackingBtn.disabled = false;
-      break;
+// MediaPipe Events
+mediapipeManager.onInitialized = () => {
+  uiManager.updateStatus('MediaPipe loaded successfully', 'normal');
+};
 
-    case VideoSourceState.VideoStopped:
-      startCameraBtn.disabled = false;
-      startVideoBtn.disabled = false;
-      restartVideoBtn.disabled = false;
-      stopTrackingBtn.disabled = true;
-      break;
+mediapipeManager.onError = (error) => {
+  console.error('[Main] MediaPipe error:', error);
+  uiManager.updateStatus('Failed to load MediaPipe', 'error');
+};
+
+mediapipeManager.onTrackingData = (data) => {
+  const format = formatSelect.value as 'readable' | 'compressed';
+  websocketManager.sendTrackingData(data.headPose, data.blendShapes, format);
+};
+
+// WebSocket Events
+websocketManager.onOpen = () => {
+  console.log('[Main] WebSocket connected');
+  uiManager.updateStatus('Connected to server', 'connected');
+  uiManager.setConnectButtonText('Disconnect');
+};
+
+websocketManager.onClose = () => {
+  console.log('[Main] WebSocket closed');
+  uiManager.updateStatus('Disconnected from server', 'normal');
+  uiManager.setConnectButtonText('Connect');
+};
+
+websocketManager.onError = (err) => {
+  console.error('[Main] WebSocket error:', err);
+  uiManager.updateStatus('WebSocket connection error', 'error');
+};
+
+// ============================================================================
+// Button Click Handlers
+// ============================================================================
+
+// Connect to WebSocket
+connectBtn.addEventListener('click', async () => {
+  const url = serverUrlInput.value.trim();
+  console.log('[Main] Connect button clicked, URL:', url);
+
+  if (!url) {
+    uiManager.updateStatus('Please enter WebSocket URL', 'error');
+    return;
   }
 
-  console.log(`[STATE] Updated to: ${videoSourceState}`);
-}
-
-// Set video source state and update UI
-function setVideoSourceState(newState: VideoSourceState) {
-  videoSourceState = newState;
-  updateButtonStates();
-}
-
-// Initialize MediaPipe Face Landmarker
-async function initializeMediaPipe() {
-  try {
-    console.log('Starting MediaPipe initialization...');
-    updateStatus('Loading MediaPipe...', 'normal');
-
-    console.log('Loading vision tasks from CDN...');
-    const vision = await FilesetResolver.forVisionTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-    );
-    console.log('Vision tasks loaded');
-
-    console.log('Creating Face Landmarker...');
-    faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: `https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task`,
-        delegate: "GPU"
-      },
-      outputFaceBlendshapes: true,
-      outputFacialTransformationMatrixes: true,
-      runningMode: "VIDEO",
-      numFaces: 1
-    });
-    console.log('Face Landmarker created successfully');
-
-    updateStatus('MediaPipe loaded successfully', 'normal');
-    console.log('MediaPipe initialization complete');
-    return true;
-  } catch (error) {
-    console.error('Failed to initialize MediaPipe:', error);
-    updateStatus('Failed to load MediaPipe', 'error');
-    return false;
+  // Disconnect if already connected
+  if (websocketManager.isConnected()) {
+    console.log('[Main] Disconnecting existing connection');
+    websocketManager.disconnect();
+    return;
   }
-}
 
-// Start Camera button
-startCameraBtn.addEventListener('click', async () => {
   try {
-    // Clear previous video sources
-    stopVideoSource();
-
-    // Start camera
-    updateStatus('Starting camera...', 'normal');
-    mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: 'user',
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        frameRate: { ideal: 30, max: 30 }
-      }
-    });
-    video.srcObject = mediaStream;
-    await video.play();
-    console.log('Camera started');
-
-    // Initialize MediaPipe and start tracking
-    updateStatus('Starting tracking...', 'normal');
-    await startTracking();
-
-    setVideoSourceState(VideoSourceState.CameraRunning);
-    updateStatus('Camera tracking started', 'connected');
-    console.log('Camera tracking successfully started');
+    console.log('[Main] Creating WebSocket connection to:', url);
+    await websocketManager.connect(url);
   } catch (err) {
-    console.error('Failed to start camera tracking:', err);
-    updateStatus(`Failed to start camera: ${err instanceof Error ? err.message : String(err)}`, 'error');
-    stopVideoSource();
-    setVideoSourceState(VideoSourceState.None);
+    console.error('[Main] Failed to connect:', err);
+    uiManager.updateStatus('Failed to connect', 'error');
   }
 });
 
-// Start Video button
-startVideoBtn.addEventListener('click', async () => {
+// Start Camera
+startCameraBtn.addEventListener('click', async () => {
+  try {
+    uiManager.updateStatus('Starting camera...', 'normal');
+    await videoSourceManager.startCamera();
+
+    uiManager.updateStatus('Starting tracking...', 'normal');
+    await mediapipeManager.startTracking(video);
+
+    uiManager.updateStatus('Camera tracking started', 'connected');
+    console.log('[Main] Camera tracking successfully started');
+  } catch (err) {
+    console.error('[Main] Failed to start camera tracking:', err);
+    uiManager.updateStatus(
+      `Failed to start camera: ${err instanceof Error ? err.message : String(err)}`,
+      'error'
+    );
+    videoSourceManager.stop();
+  }
+});
+
+// Start Video File
+startVideoBtn.addEventListener('click', () => {
   videoFileInput.onchange = async (e) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
 
     try {
-      // Clear previous video sources
-      stopVideoSource();
+      uiManager.updateStatus('Loading video file...', 'normal');
+      await videoSourceManager.startVideoFile(file);
 
-      // Load video file
-      updateStatus('Loading video file...', 'normal');
-      currentVideoFile = file;
-      currentVideoUrl = null;
-      video.src = URL.createObjectURL(file);
-      video.loop = true;
-      await video.play();
-      console.log('Video file loaded and playing');
+      uiManager.updateStatus('Starting tracking...', 'normal');
+      await mediapipeManager.startTracking(video);
 
-      // Initialize MediaPipe and start tracking
-      updateStatus('Starting tracking...', 'normal');
-      await startTracking();
-
-      setVideoSourceState(VideoSourceState.VideoRunning);
-      updateStatus('Video tracking started', 'connected');
-      console.log('Video tracking successfully started');
+      uiManager.updateStatus('Video tracking started', 'connected');
+      console.log('[Main] Video tracking successfully started');
     } catch (err) {
-      console.error('Failed to start video tracking:', err);
-      updateStatus(`Failed to start video: ${err instanceof Error ? err.message : String(err)}`, 'error');
-      stopVideoSource();
-      currentVideoFile = null;
-      currentVideoUrl = null;
-      setVideoSourceState(VideoSourceState.None);
+      console.error('[Main] Failed to start video tracking:', err);
+      uiManager.updateStatus(
+        `Failed to start video: ${err instanceof Error ? err.message : String(err)}`,
+        'error'
+      );
+      videoSourceManager.stop();
+      videoSourceManager.clearVideoReferences();
     }
   };
   videoFileInput.click();
 });
 
-// Restart Video button
+// Restart Video
 restartVideoBtn.addEventListener('click', async () => {
-  if (!currentVideoFile && !currentVideoUrl) {
-    console.error('No video file to restart');
-    updateStatus('No video to restart', 'error');
-    return;
-  }
-
   try {
-    // Reload the same video file or URL
-    updateStatus('Restarting video...', 'normal');
-    if (currentVideoFile) {
-      video.src = URL.createObjectURL(currentVideoFile);
-      console.log('Reloading video file');
-    } else if (currentVideoUrl) {
-      video.src = currentVideoUrl;
-      console.log('Reloading video URL:', currentVideoUrl);
-    }
-    video.loop = true;
-    await video.play();
-    console.log('Video playing');
+    uiManager.updateStatus('Restarting video...', 'normal');
+    await videoSourceManager.restartVideo();
 
-    // Initialize MediaPipe and start tracking
-    updateStatus('Starting tracking...', 'normal');
-    await startTracking();
+    uiManager.updateStatus('Starting tracking...', 'normal');
+    await mediapipeManager.startTracking(video);
 
-    setVideoSourceState(VideoSourceState.VideoRunning);
-    updateStatus('Video tracking restarted', 'connected');
-    console.log('Video tracking successfully restarted');
+    uiManager.updateStatus('Video tracking restarted', 'connected');
+    console.log('[Main] Video tracking successfully restarted');
   } catch (err) {
-    console.error('Failed to restart video tracking:', err);
-    updateStatus(`Failed to restart video: ${err instanceof Error ? err.message : String(err)}`, 'error');
-    setVideoSourceState(VideoSourceState.VideoStopped);
+    console.error('[Main] Failed to restart video tracking:', err);
+    uiManager.updateStatus(
+      `Failed to restart video: ${err instanceof Error ? err.message : String(err)}`,
+      'error'
+    );
   }
 });
 
-// Stop Tracking button
+// Stop Tracking
 stopTrackingBtn.addEventListener('click', () => {
-  stopTracking();
+  mediapipeManager.stopTracking();
 
-  if (videoSourceState === VideoSourceState.CameraRunning) {
+  const state = videoSourceManager.getState();
+  if (state === VideoSourceState.CameraRunning) {
     // Stop camera completely
-    stopVideoSource();
-    setVideoSourceState(VideoSourceState.None);
-    updateStatus('Camera stopped', 'normal');
-  } else if (videoSourceState === VideoSourceState.VideoRunning) {
+    videoSourceManager.stop();
+    uiManager.updateStatus('Camera stopped', 'normal');
+  } else if (state === VideoSourceState.VideoRunning) {
     // Pause video
-    video.pause();
-    setVideoSourceState(VideoSourceState.VideoStopped);
-    updateStatus('Video paused', 'normal');
+    videoSourceManager.pause();
+    uiManager.updateStatus('Video paused', 'normal');
   }
 });
 
-// Helper: Stop video source
-function stopVideoSource() {
-  if (mediaStream) {
-    mediaStream.getTracks().forEach(track => track.stop());
-    mediaStream = null;
-  }
-  video.srcObject = null;
-  video.src = '';
-  video.pause();
-}
+// ============================================================================
+// Initialization
+// ============================================================================
 
-// Connect to WebSocket server
-connectBtn.addEventListener('click', () => {
-  const url = serverUrlInput.value.trim();
-  console.log('Connect button clicked, URL:', url);
-
-  if (!url) {
-    updateStatus('Please enter WebSocket URL', 'error');
-    return;
-  }
-
-  // Disconnect if already connected
-  if (websocket && websocket.readyState === WebSocket.OPEN) {
-    console.log('Disconnecting existing connection');
-    websocket.close();
-    return;
-  }
-
-  try {
-    console.log('Creating WebSocket connection to:', url);
-    websocket = new WebSocket(url);
-
-    websocket.onopen = () => {
-      console.log('WebSocket connected successfully');
-      updateStatus('Connected to server', 'connected');
-      connectBtn.textContent = 'Disconnect';
-    };
-
-    websocket.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason);
-      updateStatus('Disconnected from server', 'normal');
-      connectBtn.textContent = 'Connect';
-      websocket = null;
-    };
-
-    websocket.onerror = (err) => {
-      console.error('WebSocket error:', err);
-      updateStatus('WebSocket connection error', 'error');
-    };
-  } catch (err) {
-    console.error('Failed to create WebSocket:', err);
-    updateStatus('Failed to connect', 'error');
-  }
-});
-
-// Start tracking (returns true on success, throws on failure)
-async function startTracking() {
-  console.log('startTracking() called');
-
-  // Start video playback if not already playing
-  if (video.paused) {
-    try {
-      await video.play();
-      console.log('Video playback started');
-    } catch (err) {
-      console.error('Failed to start video playback:', err);
-      throw new Error('Failed to start video playback: ' + err);
-    }
-  }
-
-  // Initialize MediaPipe if not already initialized
-  if (!faceLandmarker) {
-    console.log('faceLandmarker not initialized, calling initializeMediaPipe()');
-    const success = await initializeMediaPipe();
-    if (!success) {
-      console.log('MediaPipe initialization failed');
-      throw new Error('MediaPipe initialization failed');
-    }
-  } else {
-    console.log('faceLandmarker already initialized');
-  }
-
-  isTracking = true;
-
-  // Start processing video frames
-  console.log('Starting video frame processing');
-  processVideoFrame();
-
-  console.log('Tracking started with format:', formatSelect.value);
-  return true;
-}
-
-// Process video frame and send tracking data
-function processVideoFrame() {
-  if (!isTracking || !faceLandmarker) {
-    return;
-  }
-
-  // Only process if video time has changed (new frame)
-  if (video.currentTime !== lastVideoTime) {
-    lastVideoTime = video.currentTime;
-
-    try {
-      const results = faceLandmarker.detectForVideo(video, performance.now());
-
-      if (results.faceBlendshapes && results.faceBlendshapes.length > 0 &&
-          results.facialTransformationMatrixes && results.facialTransformationMatrixes.length > 0) {
-        sendTrackingData(results);
-      }
-    } catch (error) {
-      console.error('Error processing frame:', error);
-    }
-  }
-
-  // Continue processing
-  requestAnimationFrame(processVideoFrame);
-}
-
-// Send tracking data from MediaPipe results
-function sendTrackingData(results: FaceLandmarkerResult) {
-  if (!websocket || websocket.readyState !== WebSocket.OPEN) {
-    return;
-  }
-
-  const blendShapes = results.faceBlendshapes[0]!.categories;
-  const matrix = results.facialTransformationMatrixes[0]!.data;
-
-  // Extract position from transformation matrix (column-major format)
-  // Position is in the last column: matrix[12], matrix[13], matrix[14]
-  const px = matrix[12]!;
-  const py = matrix[13]!;
-  const pz = matrix[14]!;
-
-  // Extract rotation (convert matrix to quaternion)
-  const quaternion = matrixToQuaternion(matrix);
-
-  const format = formatSelect.value;
-
-  if (format === 'readable') {
-    sendReadableFormat(px, py, pz, quaternion, blendShapes);
-  } else {
-    sendCompressedFormat(px, py, pz, quaternion, blendShapes);
-  }
-}
-
-// Convert 4x4 transformation matrix to quaternion
-function matrixToQuaternion(m: number[]): { x: number; y: number; z: number; w: number } {
-  // Extract rotation part from transformation matrix (top-left 3x3)
-  const trace = m[0]! + m[5]! + m[10]!;
-
-  let w, x, y, z;
-
-  if (trace > 0) {
-    const s = Math.sqrt(trace + 1.0) * 2;
-    w = 0.25 * s;
-    x = (m[6]! - m[9]!) / s;
-    y = (m[8]! - m[2]!) / s;
-    z = (m[1]! - m[4]!) / s;
-  } else if (m[0]! > m[5]! && m[0]! > m[10]!) {
-    const s = Math.sqrt(1.0 + m[0]! - m[5]! - m[10]!) * 2;
-    w = (m[6]! - m[9]!) / s;
-    x = 0.25 * s;
-    y = (m[1]! + m[4]!) / s;
-    z = (m[8]! + m[2]!) / s;
-  } else if (m[5]! > m[10]!) {
-    const s = Math.sqrt(1.0 + m[5]! - m[0]! - m[10]!) * 2;
-    w = (m[8]! - m[2]!) / s;
-    x = (m[1]! + m[4]!) / s;
-    y = 0.25 * s;
-    z = (m[6]! + m[9]!) / s;
-  } else {
-    const s = Math.sqrt(1.0 + m[10]! - m[0]! - m[5]!) * 2;
-    w = (m[1]! - m[4]!) / s;
-    x = (m[8]! + m[2]!) / s;
-    y = (m[6]! + m[9]!) / s;
-    z = 0.25 * s;
-  }
-
-  return { x, y, z, w };
-}
-
-// Send data in Readable format (JSON)
-function sendReadableFormat(
-  px: number,
-  py: number,
-  pz: number,
-  quaternion: { x: number; y: number; z: number; w: number },
-  blendShapes: Array<{ categoryName: string; score: number }>
-) {
-  const blendShapeObj: Record<string, number> = {};
-
-  blendShapes.forEach((bs) => {
-    blendShapeObj[bs.categoryName] = Math.round(bs.score * 255);
-  });
-
-  const data = {
-    version: "1.0.0",
-    headPose: {
-      px,
-      py,
-      pz,
-      rx: quaternion.x,
-      ry: quaternion.y,
-      rz: quaternion.z,
-      rw: quaternion.w
-    },
-    blendShape: blendShapeObj
-  };
-
-  websocket!.send(JSON.stringify(data));
-}
-
-// Send data in Compressed format (Binary)
-function sendCompressedFormat(
-  px: number,
-  py: number,
-  pz: number,
-  quaternion: { x: number; y: number; z: number; w: number },
-  blendShapes: Array<{ categoryName: string; score: number }>
-) {
-  const buffer = new ArrayBuffer(84);
-  const view = new DataView(buffer);
-  const uint8View = new Uint8Array(buffer);
-
-  // Version (bytes 0-3)
-  uint8View[0] = 1; // Major
-  uint8View[1] = 0; // Minor
-  uint8View[2] = 0; // Patch
-  uint8View[3] = 0; // Reserved
-
-  // Position (bytes 4-15)
-  view.setFloat32(4, px, true);
-  view.setFloat32(8, py, true);
-  view.setFloat32(12, pz, true);
-
-  // Rotation (bytes 16-31)
-  view.setFloat32(16, quaternion.x, true);
-  view.setFloat32(20, quaternion.y, true);
-  view.setFloat32(24, quaternion.z, true);
-  view.setFloat32(28, quaternion.w, true);
-
-  // BlendShapes (bytes 32-83) - 52 values in protocol order
-  for (let i = 0; i < Math.min(blendShapes.length, 52); i++) {
-    uint8View[32 + i] = Math.round(blendShapes[i]!.score * 255);
-  }
-
-  websocket!.send(buffer);
-}
-
-function stopTracking() {
-  isTracking = false;
-  updateStatus('Tracking stopped', 'normal');
-
-  // TODO: Stop MediaPipe processing
-}
-
-// Debug mode auto-start (development only)
-async function autoStartDebugMode() {
-  // Only in development environment
-  if (!import.meta.env.DEV) {
-    return;
-  }
-
-  try {
-    // Check if debug video exists
-    const debugVideoPath = '/test-data/debug-video.mp4';
-    const response = await fetch(debugVideoPath, { method: 'HEAD' });
-
-    if (!response.ok) {
-      // Debug video not found, skip auto-start
-      console.log('[DEBUG] No debug-video.mp4 found, skipping auto-start');
-      return;
-    }
-
-    console.log('[DEBUG] Auto-starting with debug-video.mp4...');
-    updateStatus('Loading debug video...', 'normal');
-
-    // 1. Load debug video (without playing - autoplay policy)
-    video.src = debugVideoPath;
-    video.loop = true;
-    currentVideoUrl = debugVideoPath;
-    currentVideoFile = null;
-    console.log('[DEBUG] Video loaded (not playing)');
-
-    // 2. Connect to WebSocket
-    const wsUrl = serverUrlInput.value.trim() || 'ws://localhost:9090';
-    console.log('[DEBUG] Connecting to WebSocket:', wsUrl);
-
-    websocket = new WebSocket(wsUrl);
-
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('WebSocket connection timeout')), 5000);
-
-      websocket!.onopen = () => {
-        clearTimeout(timeout);
-        console.log('[DEBUG] WebSocket connected');
-        connectBtn.textContent = 'Disconnect';
-        resolve();
-      };
-
-      websocket!.onerror = (err) => {
-        clearTimeout(timeout);
-        console.error('[DEBUG] WebSocket connection failed:', err);
-        reject(err);
-      };
-    });
-
-    // Set up WebSocket close handler
-    websocket.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason);
-      updateStatus('Disconnected from server', 'normal');
-      connectBtn.textContent = 'Connect';
-      websocket = null;
-    };
-
-    // Set to VideoStopped state (ready to start with Restart Video button)
-    setVideoSourceState(VideoSourceState.VideoStopped);
-    updateStatus('Debug ready - Click "Restart Video" to begin', 'connected');
-    console.log('[DEBUG] Auto-start complete! Click "Restart Video" to begin 🎉');
-
-  } catch (err) {
-    console.log('[DEBUG] Auto-start failed:', err);
-    updateStatus('Debug auto-start failed - use manual controls', 'error');
-
-    // Clean up on failure
-    if (websocket) {
-      websocket.close();
-      websocket = null;
-    }
-
-    // Restore UI to initial state
-    stopVideoSource();
-    currentVideoUrl = null;
-    currentVideoFile = null;
-    setVideoSourceState(VideoSourceState.None);
-    connectBtn.textContent = 'Connect';
-  }
-}
-
-// Initialize
-setVideoSourceState(VideoSourceState.None);
-updateStatus('Ready - Click "Start Camera" or "Start Video"', 'normal');
+uiManager.updateButtonStates(VideoSourceState.None);
+uiManager.updateStatus('Ready - Click "Start Camera" or "Start Video"', 'normal');
 
 // Auto-start debug mode if in development
-autoStartDebugMode();
+autoStartDebugMode(
+  videoSourceManager,
+  websocketManager,
+  uiManager,
+  serverUrlInput.value.trim()
+);
