@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using SIPSorcery.Net;
@@ -85,6 +86,7 @@ public class WebRTCReceiver : IDisposable
 
             // Create offer
             var offer = _peerConnection.createOffer();
+            offer.sdp = SanitizeSdp(offer.sdp);
             await _peerConnection.setLocalDescription(offer);
 
             Console.WriteLine("[WebRTC] Offer SDP generated");
@@ -141,6 +143,7 @@ public class WebRTCReceiver : IDisposable
 
             // Create answer
             var answer = _peerConnection.createAnswer();
+            answer.sdp = SanitizeSdp(answer.sdp);
             await _peerConnection.setLocalDescription(answer);
 
             Console.WriteLine("[WebRTC] Answer SDP generated");
@@ -324,6 +327,17 @@ public class WebRTCReceiver : IDisposable
         {
             throw new Exception($"Connection failed. Final state: {_peerConnection.connectionState}");
         }
+    }
+
+    /// <summary>
+    /// Normalize SDP line endings to \r\n for browser compatibility.
+    /// </summary>
+    private static string SanitizeSdp(string sdp)
+    {
+        var lines = sdp.Replace("\r\n", "\n").Replace("\r", "\n")
+            .Split('\n')
+            .Where(line => line.Length > 0);
+        return string.Join("\r\n", lines) + "\r\n";
     }
 
     /// <summary>

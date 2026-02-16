@@ -89,7 +89,7 @@ export class WebRTCManager {
       // Set remote description (offer)
       await this.peerConnection.setRemoteDescription({
         type: 'offer',
-        sdp: offerSdp
+        sdp: this.normalizeSdp(offerSdp)
       });
 
       // Create answer
@@ -125,7 +125,7 @@ export class WebRTCManager {
     try {
       await this.peerConnection.setRemoteDescription({
         type: 'answer',
-        sdp: answerSdp
+        sdp: this.normalizeSdp(answerSdp)
       });
       console.log('[WebRTC] Remote answer set');
     } catch (error) {
@@ -292,6 +292,18 @@ export class WebRTCManager {
     if (this.onDataChannelStateChange) {
       this.onDataChannelStateChange(state);
     }
+  }
+
+  /**
+   * Normalize SDP line endings for browser compatibility.
+   * Ensures each line ends with \r\n, which Chrome's SDP parser requires.
+   * Trailing newlines are often lost during copy-paste.
+   */
+  private normalizeSdp(sdp: string): string {
+    const lines = sdp.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+      .split('\n')
+      .filter(line => line.length > 0);
+    return lines.join('\r\n') + '\r\n';
   }
 
   /**
