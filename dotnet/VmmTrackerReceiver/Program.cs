@@ -13,25 +13,12 @@ class Program
         Console.WriteLine();
 
         // Parse command line arguments
-        string mode = "websocket"; // Default to WebSocket for backward compatibility
-        int port = 9090;
         string format = "compressed";
         string role = "answerer"; // WebRTC role: offerer or answerer
 
         for (int i = 0; i < args.Length; i++)
         {
-            if (args[i] == "--mode" && i + 1 < args.Length)
-            {
-                mode = args[i + 1].ToLowerInvariant();
-            }
-            else if (args[i] == "--port" && i + 1 < args.Length)
-            {
-                if (int.TryParse(args[i + 1], out var p))
-                {
-                    port = p;
-                }
-            }
-            else if (args[i] == "--format" && i + 1 < args.Length)
+            if (args[i] == "--format" && i + 1 < args.Length)
             {
                 format = args[i + 1].ToLowerInvariant();
             }
@@ -49,34 +36,13 @@ class Program
             _ => throw new ArgumentException($"Unknown format: {format}. Use 'compressed' or 'readable'")
         };
 
-        Console.WriteLine($"Mode: {mode}");
         Console.WriteLine($"Format: {format}");
-        if (mode == "websocket")
-        {
-            Console.WriteLine($"Port: {port}");
-        }
-        else if (mode == "webrtc")
-        {
-            Console.WriteLine($"Role: {role}");
-        }
+        Console.WriteLine($"Role: {role}");
         Console.WriteLine();
 
         try
         {
-            if (mode == "websocket")
-            {
-                RunWebSocketMode(port, deserializer);
-            }
-            else if (mode == "webrtc")
-            {
-                await RunWebRTCMode(role, deserializer);
-            }
-            else
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Unknown mode: {mode}. Use 'websocket' or 'webrtc'");
-                Console.ResetColor();
-            }
+            await RunWebRTCMode(role, deserializer);
         }
         catch (Exception ex)
         {
@@ -85,43 +51,6 @@ class Program
             Console.WriteLine(ex.StackTrace);
             Console.ResetColor();
         }
-    }
-
-    static void RunWebSocketMode(int port, ITrackingDataDeserializer deserializer)
-    {
-        using var server = new WebSocketServer(port, deserializer);
-
-        server.DataReceived += (data) =>
-        {
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Received tracking data:");
-            Console.WriteLine(data);
-            Console.WriteLine();
-        };
-
-        server.ErrorOccurred += (error) =>
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[ERROR] {error}");
-            Console.ResetColor();
-        };
-
-        server.Start();
-        Console.WriteLine($"WebSocket server started on ws://localhost:{port}");
-        Console.WriteLine("Press Ctrl+C to stop...");
-        Console.WriteLine();
-
-        // Wait for Ctrl+C
-        var exitEvent = new ManualResetEvent(false);
-        Console.CancelKeyPress += (sender, e) =>
-        {
-            e.Cancel = true;
-            exitEvent.Set();
-        };
-
-        exitEvent.WaitOne();
-
-        Console.WriteLine();
-        Console.WriteLine("Shutting down...");
     }
 
     static async Task RunWebRTCMode(string role, ITrackingDataDeserializer deserializer)
