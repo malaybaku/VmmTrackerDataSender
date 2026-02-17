@@ -23,10 +23,10 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
 
 ## 進捗サマリー
 
-- **Phase 2-A (SDP圧縮プロトコル)**: ⏳ 未実施 (0/4タスク)
-- **Phase 2-B (ライブラリ導入)**: ⏳ 未実施 (0/3タスク)
-- **Phase 2-C (Web側UX)**: ⏳ 未実施 (0/5タスク)
-- **Phase 2-D (.NET側UX)**: ⏳ 未実施 (0/4タスク)
+- **Phase 2-A (SDP圧縮プロトコル)**: ✅ 完了 (4/4タスク)
+- **Phase 2-B (ライブラリ導入 + Vanilla ICE)**: ✅ 完了 (3/3タスク)
+- **Phase 2-C (Web側UX)**: 🔶 一部完了 (2/5タスク) — C-4, C-5は2-Bで実施済み、C-1〜C-3が残り
+- **Phase 2-D (.NET側UX)**: 🔶 一部完了 (2/4タスク) — D-3, D-4は2-Bで実施済み、D-1〜D-2が残り
 - **Phase 2-E (統合テスト)**: ⏳ 未実施 (0/3タスク)
 
 ---
@@ -35,7 +35,7 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
 
 ### Phase 2-A: SDP圧縮プロトコル
 
-- [ ] **Task A-1**: 圧縮フォーマット仕様の策定
+- [x] **Task A-1**: 圧縮フォーマット仕様の策定
   - SDPから抽出する必須フィールドの確定:
     - DTLSフィンガープリント (SHA-256, 32byte raw)
     - ICE ufrag (可変長)
@@ -49,19 +49,19 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
     - 複雑さとのトレードオフ
   - 成果物: `docs/sdp-compression-spec.md`
 
-- [ ] **Task A-2**: TypeScript実装（Web側エンコーダ/デコーダ）
+- [x] **Task A-2**: TypeScript実装（Web側エンコーダ/デコーダ）
   - ファイル: `web/src/sdp-codec.ts`（新規）
   - `compressSdp(sdp: string, iceCandidates: RTCIceCandidate[]): Uint8Array`
   - `decompressSdp(data: Uint8Array): { sdp: string, iceCandidates: RTCIceCandidateInit[] }`
   - base64変換ユーティリティ
   - SDPテンプレートからの復元ロジック
 
-- [ ] **Task A-3**: C#実装（.NET側エンコーダ/デコーダ）
+- [x] **Task A-3**: C#実装（.NET側エンコーダ/デコーダ）
   - ファイル: `dotnet/VmmTrackerCore/SdpCodec.cs`（新規、.NET Standard 2.1）
   - Web側と同一フォーマットを処理
   - SIPSorceryのSDP型との変換
 
-- [ ] **Task A-4**: 相互運用性テスト
+- [x] **Task A-4**: 相互運用性テスト
   - Web側でエンコード → .NET側でデコード（Offer方向の逆も含む）
   - .NET側でエンコード → Web側でデコード
   - テストベクター（固定入力に対する期待出力）を用意
@@ -71,13 +71,13 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
 
 ### Phase 2-B: ライブラリ導入
 
-- [ ] **Task B-1**: Web側 QRコードライブラリ導入
+- [x] **Task B-1**: Web側 QRコードライブラリ導入
   - QR生成: `qrcode`（npm）の導入、Viteビルドとの統合確認
   - QR読み取り: `jsQR` または `@aspect-build/qr-scanner` の選定・導入
   - ライセンス確認（MIT等であること）
   - `index.html` ライセンスモーダルへの追記
 
-- [ ] **Task B-2**: .NET側 QRコードライブラリ導入
+- [x] **Task B-2**: .NET側 QRコードライブラリ導入
   - QR生成: `QRCoder`（NuGet）の導入
     - コンソールでのASCII表示、または画像ファイル出力を検討
   - QR読み取り: `ZXing.Net`（NuGet）の導入
@@ -85,7 +85,7 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
   - ライセンス確認
   - `.csproj` 更新
 
-- [ ] **Task B-3**: Vanilla ICE対応
+- [x] **Task B-3**: Vanilla ICE対応
   - Web側: ICE gathering完了を待ってからSDP圧縮を実行する仕組み
     - `RTCPeerConnection.iceGatheringState === 'complete'` の監視
     - または `onicecandidate` の `null` イベントを待機
@@ -116,12 +116,12 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
   - 同時にbase64テキストを表示（コピーボタン付き）
   - QRコードは画面上で十分なサイズで表示（PC webcamでスキャンしやすいように）
 
-- [ ] **Task C-4**: WebRTCManagerの改修
+- [x] **Task C-4**: WebRTCManagerの改修（Phase 2-Bで実施済み）
   - Vanilla ICE対応: Offer受信 → Answer生成 → ICE収集完了待ち → 圧縮SDP出力
   - `initializeAsAnswerer` のフローを圧縮SDP対応に変更
   - ICE候補の個別交換UIを廃止
 
-- [ ] **Task C-5**: 既存コードのクリーンアップ
+- [x] **Task C-5**: 既存コードのクリーンアップ（Phase 2-Bで実施済み）
   - 旧SDP手動交換関連のHTML/TSコードを削除
   - 不要になったイベントハンドラの削除
   - SignalingData型の更新または削除
@@ -141,12 +141,12 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
   - スキャン成功時のAnswer SDP復元・設定
   - webcamがない場合のフォールバック: base64テキストのコンソール入力
 
-- [ ] **Task D-3**: WebRTCReceiverの改修
+- [x] **Task D-3**: WebRTCReceiverの改修（Phase 2-Bで実施済み）
   - Vanilla ICE対応
   - 圧縮SDPからのRTCSessionDescription復元
   - Program.csの接続フロー更新（QR表示 → スキャン/入力 → 接続）
 
-- [ ] **Task D-4**: 既存コードのクリーンアップ
+- [x] **Task D-4**: 既存コードのクリーンアップ（Phase 2-Bで実施済み）
   - 旧SDP手動交換のコンソールUI削除
   - `ReadMultiLineInput` の削除または用途変更
   - `--role` 引数の廃止（PC側は常にOfferer）
