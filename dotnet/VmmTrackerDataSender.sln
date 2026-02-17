@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VmmTrackerReceiver", "VmmTr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VmmTrackerCore", "VmmTrackerCore\VmmTrackerCore.csproj", "{8570562A-B07E-4FC9-B124-3AEA5619C4FD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VmmTrackerDataSender.Tests", "VmmTrackerDataSender.Tests\VmmTrackerDataSender.Tests.csproj", "{00C407B1-ED15-4158-BE95-AACED05EBDE9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,18 @@ Global
 		{8570562A-B07E-4FC9-B124-3AEA5619C4FD}.Release|x64.Build.0 = Release|Any CPU
 		{8570562A-B07E-4FC9-B124-3AEA5619C4FD}.Release|x86.ActiveCfg = Release|Any CPU
 		{8570562A-B07E-4FC9-B124-3AEA5619C4FD}.Release|x86.Build.0 = Release|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Debug|x64.Build.0 = Debug|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Debug|x86.Build.0 = Debug|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Release|x64.ActiveCfg = Release|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Release|x64.Build.0 = Release|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Release|x86.ActiveCfg = Release|Any CPU
+		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
