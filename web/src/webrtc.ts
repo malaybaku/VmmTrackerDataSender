@@ -6,6 +6,7 @@
 import type { TrackingData, SerializationFormat } from './types';
 import { WebRTCConnectionState, WebRTCDataChannelState } from './types';
 import { serializeReadable, serializeCompressed } from './serializers';
+import { encodeSdp, decodeSdp, toBase64, fromBase64 } from './sdp-codec';
 
 export class WebRTCManager {
   private peerConnection: RTCPeerConnection | null = null;
@@ -13,12 +14,14 @@ export class WebRTCManager {
   private connectionState: WebRTCConnectionState = WebRTCConnectionState.Disconnected;
   private dataChannelState: WebRTCDataChannelState = WebRTCDataChannelState.Closed;
 
+  // ICE gathering
+  private collectedIceCandidates: RTCIceCandidate[] = [];
+  private iceGatheringResolve: (() => void) | null = null;
+
   // Event handlers
   public onConnectionStateChange: ((state: WebRTCConnectionState) => void) | null = null;
   public onDataChannelStateChange: ((state: WebRTCDataChannelState) => void) | null = null;
-  public onOfferGenerated: ((sdp: string) => void) | null = null;
-  public onAnswerGenerated: ((sdp: string) => void) | null = null;
-  public onIceCandidate: ((candidate: RTCIceCandidate) => void) | null = null;
+  public onCompressedSdpReady: ((base64: string, type: 'offer' | 'answer') => void) | null = null;
   public onError: ((error: Error) => void) | null = null;
 
   /**
@@ -28,37 +31,36 @@ export class WebRTCManager {
     console.log('[WebRTC] Initializing as offerer...');
 
     try {
-      // Create peer connection with STUN server
       this.peerConnection = new RTCPeerConnection({
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' }
         ]
       });
 
-      // Set up event handlers
       this.setupPeerConnectionHandlers();
 
-      // Create data channel
       this.dataChannel = this.peerConnection.createDataChannel('tracking-data', {
         ordered: true,
         maxRetransmits: 3
       });
 
-      // Set up data channel handlers
       this.setupDataChannelHandlers();
 
-      // Create offer
       const offer = await this.peerConnection.createOffer();
       await this.peerConnection.setLocalDescription(offer);
 
-      console.log('[WebRTC] Offer created:', offer.sdp);
-
-      // Emit offer SDP
-      if (this.onOfferGenerated && offer.sdp) {
-        this.onOfferGenerated(offer.sdp);
-      }
-
+      console.log('[WebRTC] Offer created, waiting for ICE gathering...');
       this.updateConnectionState(WebRTCConnectionState.Connecting);
+
+      await this.waitForIceGathering();
+
+      const compressed = encodeSdp(offer.sdp!, 'offer', this.collectedIceCandidates);
+      const base64 = toBase64(compressed);
+      console.log('[WebRTC] Compressed offer ready, base64 length:', base64.length);
+
+      if (this.onCompressedSdpReady) {
+        this.onCompressedSdpReady(base64, 'offer');
+      }
     } catch (error) {
       console.error('[WebRTC] Failed to initialize as offerer:', error);
       const err = error instanceof Error ? error : new Error(String(error));
@@ -72,38 +74,43 @@ export class WebRTCManager {
   /**
    * Initialize WebRTC peer connection as answerer
    */
-  async initializeAsAnswerer(offerSdp: string): Promise<void> {
+  async initializeAsAnswerer(offerBase64: string): Promise<void> {
     console.log('[WebRTC] Initializing as answerer...');
 
     try {
-      // Create peer connection with STUN server
+      // Decode compressed offer
+      const offerBytes = fromBase64(offerBase64);
+      const { sdp: offerSdp } = decodeSdp(offerBytes);
+      console.log('[WebRTC] Decoded offer SDP from base64');
+
       this.peerConnection = new RTCPeerConnection({
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' }
         ]
       });
 
-      // Set up event handlers
       this.setupPeerConnectionHandlers();
 
-      // Set remote description (offer)
       await this.peerConnection.setRemoteDescription({
         type: 'offer',
-        sdp: this.normalizeSdp(offerSdp)
+        sdp: offerSdp
       });
 
-      // Create answer
       const answer = await this.peerConnection.createAnswer();
       await this.peerConnection.setLocalDescription(answer);
 
-      console.log('[WebRTC] Answer created:', answer.sdp);
-
-      // Emit answer SDP
-      if (this.onAnswerGenerated && answer.sdp) {
-        this.onAnswerGenerated(answer.sdp);
-      }
-
+      console.log('[WebRTC] Answer created, waiting for ICE gathering...');
       this.updateConnectionState(WebRTCConnectionState.Connecting);
+
+      await this.waitForIceGathering();
+
+      const compressed = encodeSdp(answer.sdp!, 'answer', this.collectedIceCandidates);
+      const base64 = toBase64(compressed);
+      console.log('[WebRTC] Compressed answer ready, base64 length:', base64.length);
+
+      if (this.onCompressedSdpReady) {
+        this.onCompressedSdpReady(base64, 'answer');
+      }
     } catch (error) {
       console.error('[WebRTC] Failed to initialize as answerer:', error);
       const err = error instanceof Error ? error : new Error(String(error));
@@ -115,38 +122,25 @@ export class WebRTCManager {
   }
 
   /**
-   * Set remote description (answer from remote peer)
+   * Set remote description (answer from remote peer, as compressed base64)
    */
-  async setRemoteAnswer(answerSdp: string): Promise<void> {
+  async setRemoteAnswer(answerBase64: string): Promise<void> {
     if (!this.peerConnection) {
       throw new Error('Peer connection not initialized');
     }
 
     try {
+      const answerBytes = fromBase64(answerBase64);
+      const { sdp: answerSdp } = decodeSdp(answerBytes);
+      console.log('[WebRTC] Decoded answer SDP from base64');
+
       await this.peerConnection.setRemoteDescription({
         type: 'answer',
-        sdp: this.normalizeSdp(answerSdp)
+        sdp: answerSdp
       });
       console.log('[WebRTC] Remote answer set');
     } catch (error) {
       console.error('[WebRTC] Failed to set remote answer:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Add ICE candidate from remote peer
-   */
-  async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
-    if (!this.peerConnection) {
-      throw new Error('Peer connection not initialized');
-    }
-
-    try {
-      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-      console.log('[WebRTC] ICE candidate added:', candidate.candidate);
-    } catch (error) {
-      console.error('[WebRTC] Failed to add ICE candidate:', error);
       throw error;
     }
   }
@@ -157,15 +151,31 @@ export class WebRTCManager {
   private setupPeerConnectionHandlers(): void {
     if (!this.peerConnection) return;
 
-    // ICE candidate event
+    // Reset ICE gathering state
+    this.collectedIceCandidates = [];
+    this.iceGatheringResolve = null;
+
+    // ICE candidate event - collect candidates internally
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('[WebRTC] ICE candidate:', event.candidate.candidate);
-        if (this.onIceCandidate) {
-          this.onIceCandidate(event.candidate);
-        }
+        console.log('[WebRTC] ICE candidate collected:', event.candidate.candidate);
+        this.collectedIceCandidates.push(event.candidate);
       } else {
-        console.log('[WebRTC] ICE gathering completed');
+        console.log('[WebRTC] ICE gathering completed (null candidate)');
+        if (this.iceGatheringResolve) {
+          this.iceGatheringResolve();
+          this.iceGatheringResolve = null;
+        }
+      }
+    };
+
+    // Backup: onicegatheringstatechange
+    this.peerConnection.onicegatheringstatechange = () => {
+      const state = this.peerConnection!.iceGatheringState;
+      console.log('[WebRTC] ICE gathering state:', state);
+      if (state === 'complete' && this.iceGatheringResolve) {
+        this.iceGatheringResolve();
+        this.iceGatheringResolve = null;
       }
     };
 
@@ -203,6 +213,28 @@ export class WebRTCManager {
   }
 
   /**
+   * Wait for ICE gathering to complete or timeout
+   */
+  private waitForIceGathering(timeoutMs = 10000): Promise<void> {
+    // Already complete
+    if (this.peerConnection?.iceGatheringState === 'complete') {
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve) => {
+      this.iceGatheringResolve = resolve;
+
+      setTimeout(() => {
+        if (this.iceGatheringResolve) {
+          console.warn('[WebRTC] ICE gathering timed out, proceeding with collected candidates');
+          this.iceGatheringResolve = null;
+          resolve();
+        }
+      }, timeoutMs);
+    });
+  }
+
+  /**
    * Set up data channel event handlers
    */
   private setupDataChannelHandlers(): void {
@@ -227,7 +259,6 @@ export class WebRTCManager {
 
     this.dataChannel.onmessage = (event) => {
       console.log('[WebRTC] Data channel message received:', event.data);
-      // For now, we only send data, not receive
     };
   }
 
@@ -295,18 +326,6 @@ export class WebRTCManager {
   }
 
   /**
-   * Normalize SDP line endings for browser compatibility.
-   * Ensures each line ends with \r\n, which Chrome's SDP parser requires.
-   * Trailing newlines are often lost during copy-paste.
-   */
-  private normalizeSdp(sdp: string): string {
-    const lines = sdp.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-      .split('\n')
-      .filter(line => line.length > 0);
-    return lines.join('\r\n') + '\r\n';
-  }
-
-  /**
    * Close connection
    */
   close(): void {
@@ -321,6 +340,9 @@ export class WebRTCManager {
       this.peerConnection.close();
       this.peerConnection = null;
     }
+
+    this.collectedIceCandidates = [];
+    this.iceGatheringResolve = null;
 
     this.updateConnectionState(WebRTCConnectionState.Disconnected);
     this.updateDataChannelState(WebRTCDataChannelState.Closed);

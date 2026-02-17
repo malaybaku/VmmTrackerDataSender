@@ -71,6 +71,17 @@ class Program
             Console.ResetColor();
         };
 
+        receiver.CompressedSdpReady += (base64, isOffer) =>
+        {
+            var label = isOffer ? "Offer" : "Answer";
+            Console.WriteLine();
+            Console.WriteLine($"--- Compressed {label} (base64) ---");
+            Console.WriteLine(base64);
+            Console.WriteLine($"--- End ---");
+            Console.WriteLine();
+            Console.WriteLine($"Copy the base64 string above and send it to the remote peer.");
+        };
+
         // Set up cancellation
         var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (sender, e) =>
@@ -84,28 +95,33 @@ class Program
             // PC generates offer
             await receiver.InitializeAsOfferer();
 
-            Console.WriteLine("Copy the Offer SDP above and send it to the remote peer (web browser).");
             Console.WriteLine();
-            Console.WriteLine("Paste the Answer SDP from the remote peer below and press Enter:");
-            Console.WriteLine("(Multi-line input: end with a line containing only '---')");
+            Console.WriteLine("Paste the compressed answer (base64, single line) from the remote peer:");
 
-            string answerSdp = ReadMultiLineInput();
+            string? answerBase64 = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(answerBase64))
+            {
+                Console.WriteLine("No answer provided. Exiting.");
+                return;
+            }
 
-            receiver.SetRemoteAnswer(answerSdp);
+            receiver.SetRemoteAnswer(answerBase64.Trim());
             Console.WriteLine();
-            Console.WriteLine("Answer SDP set. Waiting for connection...");
+            Console.WriteLine("Remote answer set. Waiting for connection...");
         }
         else if (role == "answerer")
         {
             // PC receives offer from web
-            Console.WriteLine("Paste the Offer SDP from the remote peer (web browser) below and press Enter:");
-            Console.WriteLine("(Multi-line input: end with a line containing only '---')");
+            Console.WriteLine("Paste the compressed offer (base64, single line) from the remote peer:");
 
-            string offerSdp = ReadMultiLineInput();
+            string? offerBase64 = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(offerBase64))
+            {
+                Console.WriteLine("No offer provided. Exiting.");
+                return;
+            }
 
-            await receiver.InitializeAsAnswerer(offerSdp);
-
-            Console.WriteLine("Copy the Answer SDP above and send it to the remote peer (web browser).");
+            await receiver.InitializeAsAnswerer(offerBase64.Trim());
             Console.WriteLine();
         }
         else
@@ -115,19 +131,6 @@ class Program
             Console.ResetColor();
             return;
         }
-
-        // Wait for ICE candidates
-        Console.WriteLine();
-        Console.WriteLine("Waiting for ICE candidates...");
-        Console.WriteLine("(This may take a few seconds)");
-        await Task.Delay(2000); // Give time for ICE gathering
-
-        Console.WriteLine();
-        Console.WriteLine("If you received ICE candidates from the remote peer, paste them now.");
-        Console.WriteLine("Otherwise, press Enter to skip.");
-        Console.WriteLine("(Format: one JSON per line, end with empty line)");
-
-        // TODO: Add ICE candidate input handling (optional for now)
 
         // Wait for connection
         try
@@ -149,23 +152,5 @@ class Program
             Console.WriteLine();
             Console.WriteLine("Shutting down...");
         }
-    }
-
-    static string ReadMultiLineInput()
-    {
-        var lines = new System.Text.StringBuilder();
-        string? line;
-
-        while ((line = Console.ReadLine()) != null)
-        {
-            if (line.Trim() == "---")
-            {
-                break;
-            }
-
-            lines.AppendLine(line);
-        }
-
-        return lines.ToString().Trim();
     }
 }

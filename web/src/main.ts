@@ -27,10 +27,8 @@ const webrtcInitOffererBtn = document.getElementById('webrtc-init-offerer-btn') 
 const webrtcInitAnswererBtn = document.getElementById('webrtc-init-answerer-btn') as HTMLButtonElement;
 const webrtcOfferSdp = document.getElementById('webrtc-offer-sdp') as HTMLTextAreaElement;
 const webrtcAnswerSdp = document.getElementById('webrtc-answer-sdp') as HTMLTextAreaElement;
-const webrtcIceCandidate = document.getElementById('webrtc-ice-candidate') as HTMLTextAreaElement;
 const webrtcCopyOfferBtn = document.getElementById('webrtc-copy-offer-btn') as HTMLButtonElement;
 const webrtcSetAnswerBtn = document.getElementById('webrtc-set-answer-btn') as HTMLButtonElement;
-const webrtcAddIceBtn = document.getElementById('webrtc-add-ice-btn') as HTMLButtonElement;
 const webrtcStatus = document.getElementById('webrtc-status') as HTMLSpanElement;
 
 // Other elements
@@ -129,28 +127,12 @@ webrtcManager.onDataChannelStateChange = (state) => {
   }
 };
 
-webrtcManager.onOfferGenerated = (sdp) => {
-  console.log('[Main] Offer SDP generated');
-  webrtcOfferSdp.value = sdp;
-};
-
-webrtcManager.onAnswerGenerated = (sdp) => {
-  console.log('[Main] Answer SDP generated');
-  webrtcAnswerSdp.value = sdp;
-};
-
-webrtcManager.onIceCandidate = (candidate) => {
-  console.log('[Main] ICE candidate:', candidate.candidate);
-  // Append ICE candidate to textarea (one per line)
-  const candidateJson = JSON.stringify({
-    candidate: candidate.candidate,
-    sdpMid: candidate.sdpMid,
-    sdpMLineIndex: candidate.sdpMLineIndex
-  });
-  if (webrtcIceCandidate.value) {
-    webrtcIceCandidate.value += '\n' + candidateJson;
+webrtcManager.onCompressedSdpReady = (base64, type) => {
+  console.log(`[Main] Compressed ${type} SDP ready, length: ${base64.length}`);
+  if (type === 'offer') {
+    webrtcOfferSdp.value = base64;
   } else {
-    webrtcIceCandidate.value = candidateJson;
+    webrtcAnswerSdp.value = base64;
   }
 };
 
@@ -201,9 +183,9 @@ previewModeSelect.addEventListener('change', () => {
 // WebRTC: Initialize as Offerer
 webrtcInitOffererBtn.addEventListener('click', async () => {
   try {
-    uiManager.updateStatus('Initializing WebRTC as offerer...', 'normal');
+    uiManager.updateStatus('Initializing WebRTC (gathering ICE)...', 'normal');
     await webrtcManager.initializeAsOfferer();
-    uiManager.updateStatus('Offer generated. Copy and send to remote peer.', 'normal');
+    uiManager.updateStatus('Compressed offer ready. Copy and send to remote peer.', 'normal');
   } catch (err) {
     console.error('[Main] Failed to initialize as offerer:', err);
     uiManager.updateStatus('Failed to initialize WebRTC', 'error');
@@ -212,16 +194,16 @@ webrtcInitOffererBtn.addEventListener('click', async () => {
 
 // WebRTC: Initialize as Answerer
 webrtcInitAnswererBtn.addEventListener('click', async () => {
-  const offerSdp = webrtcOfferSdp.value.trim();
-  if (!offerSdp) {
-    uiManager.updateStatus('Please paste Offer SDP first', 'error');
+  const offerBase64 = webrtcOfferSdp.value.trim();
+  if (!offerBase64) {
+    uiManager.updateStatus('Please paste compressed offer (base64) first', 'error');
     return;
   }
 
   try {
-    uiManager.updateStatus('Initializing WebRTC as answerer...', 'normal');
-    await webrtcManager.initializeAsAnswerer(offerSdp);
-    uiManager.updateStatus('Answer generated. Copy and send to remote peer.', 'normal');
+    uiManager.updateStatus('Initializing WebRTC as answerer (gathering ICE)...', 'normal');
+    await webrtcManager.initializeAsAnswerer(offerBase64);
+    uiManager.updateStatus('Compressed answer ready. Copy and send to remote peer.', 'normal');
   } catch (err) {
     console.error('[Main] Failed to initialize as answerer:', err);
     uiManager.updateStatus('Failed to initialize WebRTC', 'error');
@@ -247,42 +229,19 @@ webrtcCopyOfferBtn.addEventListener('click', async () => {
 
 // WebRTC: Set Answer SDP
 webrtcSetAnswerBtn.addEventListener('click', async () => {
-  const answerSdp = webrtcAnswerSdp.value.trim();
-  if (!answerSdp) {
-    uiManager.updateStatus('Please paste Answer SDP first', 'error');
+  const answerBase64 = webrtcAnswerSdp.value.trim();
+  if (!answerBase64) {
+    uiManager.updateStatus('Please paste compressed answer (base64) first', 'error');
     return;
   }
 
   try {
-    uiManager.updateStatus('Setting Answer SDP...', 'normal');
-    await webrtcManager.setRemoteAnswer(answerSdp);
-    uiManager.updateStatus('Answer SDP set. Connection establishing...', 'normal');
+    uiManager.updateStatus('Setting remote answer...', 'normal');
+    await webrtcManager.setRemoteAnswer(answerBase64);
+    uiManager.updateStatus('Remote answer set. Connection establishing...', 'normal');
   } catch (err) {
     console.error('[Main] Failed to set answer:', err);
-    uiManager.updateStatus('Failed to set Answer SDP', 'error');
-  }
-});
-
-// WebRTC: Add ICE Candidate
-webrtcAddIceBtn.addEventListener('click', async () => {
-  const candidateText = webrtcIceCandidate.value.trim();
-  if (!candidateText) {
-    uiManager.updateStatus('Please paste ICE candidate JSON', 'error');
-    return;
-  }
-
-  try {
-    // Parse JSON (assume one candidate per line)
-    const lines = candidateText.split('\n').filter(line => line.trim());
-    for (const line of lines) {
-      const candidate = JSON.parse(line);
-      await webrtcManager.addIceCandidate(candidate);
-    }
-    uiManager.updateStatus(`Added ${lines.length} ICE candidate(s)`, 'normal');
-    webrtcIceCandidate.value = ''; // Clear after adding
-  } catch (err) {
-    console.error('[Main] Failed to add ICE candidate:', err);
-    uiManager.updateStatus('Failed to add ICE candidate. Check JSON format.', 'error');
+    uiManager.updateStatus('Failed to set answer', 'error');
   }
 });
 

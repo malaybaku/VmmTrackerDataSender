@@ -35,8 +35,6 @@ function buildTestSdp(params: {
 }
 
 function makeCandidate(ip: string, port: number): RTCIceCandidate {
-  const isIPv6 = ip.includes(':');
-  const addrType = isIPv6 ? 'IP6' : 'IP4';
   return {
     candidate: `candidate:1 1 udp 2113937151 ${ip} ${port} typ host generation 0`,
     sdpMid: '0',
@@ -216,7 +214,6 @@ describe('SDP Codec', () => {
 
     it('should use \\r\\n line endings throughout', () => {
       const { sdp } = decodeSdp(TV1_EXPECTED_BYTES);
-      const lines = sdp.split('\r\n');
       // All lines should have been split by \r\n (no standalone \n)
       expect(sdp).not.toMatch(/[^\r]\n/);
       // Should end with \r\n

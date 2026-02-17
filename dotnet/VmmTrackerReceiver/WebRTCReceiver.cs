@@ -1,5 +1,5 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using SIPSorcery.Net;
@@ -17,6 +17,10 @@ public class WebRTCReceiver : IDisposable
     private RTCDataChannel? _dataChannel;
     private bool _disposed = false;
 
+    // ICE gathering
+    private readonly List<string> _collectedIceCandidates = new();
+    private TaskCompletionSource<bool>? _iceGatheringTcs;
+
     /// <summary>
     /// Event fired when tracking data is received
     /// </summary>
@@ -28,19 +32,9 @@ public class WebRTCReceiver : IDisposable
     public event Action<string>? ErrorOccurred;
 
     /// <summary>
-    /// Event fired when offer SDP is generated
+    /// Event fired when compressed SDP (base64) is ready
     /// </summary>
-    public event Action<string>? OfferGenerated;
-
-    /// <summary>
-    /// Event fired when answer SDP is generated
-    /// </summary>
-    public event Action<string>? AnswerGenerated;
-
-    /// <summary>
-    /// Event fired when ICE candidate is generated
-    /// </summary>
-    public event Action<RTCIceCandidate>? IceCandidateGenerated;
+    public event Action<string, bool>? CompressedSdpReady;
 
     /// <summary>
     /// Event fired when connection state changes
@@ -61,41 +55,36 @@ public class WebRTCReceiver : IDisposable
 
         try
         {
-            // Create peer connection with STUN server
             var config = new RTCConfiguration
             {
-                iceServers = new System.Collections.Generic.List<RTCIceServer>
+                iceServers = new List<RTCIceServer>
                 {
                     new RTCIceServer { urls = "stun:stun.l.google.com:19302" }
                 }
             };
 
             _peerConnection = new RTCPeerConnection(config);
-
-            // Set up event handlers
             SetupPeerConnectionHandlers();
 
-            // Create data channel
             _dataChannel = await _peerConnection.createDataChannel("tracking-data", new RTCDataChannelInit
             {
                 ordered = true
             });
-
-            // Set up data channel handlers
             SetupDataChannelHandlers();
 
-            // Create offer
             var offer = _peerConnection.createOffer();
             offer.sdp = SanitizeSdp(offer.sdp);
             await _peerConnection.setLocalDescription(offer);
 
-            Console.WriteLine("[WebRTC] Offer SDP generated");
-            Console.WriteLine("--- Offer SDP Start ---");
-            Console.WriteLine(offer.sdp);
-            Console.WriteLine("--- Offer SDP End ---");
-            Console.WriteLine();
+            Console.WriteLine("[WebRTC] Offer created, waiting for ICE gathering...");
 
-            OfferGenerated?.Invoke(offer.sdp);
+            await WaitForIceGathering();
+
+            var compressed = SdpCodec.Encode(offer.sdp, true, _collectedIceCandidates.ToArray());
+            var base64 = SdpCodec.ToBase64(compressed);
+            Console.WriteLine($"[WebRTC] Compressed offer ready, base64 length: {base64.Length}");
+
+            CompressedSdpReady?.Invoke(base64, true);
         }
         catch (Exception ex)
         {
@@ -107,29 +96,30 @@ public class WebRTCReceiver : IDisposable
     }
 
     /// <summary>
-    /// Initialize as answerer (PC side receives offer from web)
+    /// Initialize as answerer (PC side receives compressed offer from web)
     /// </summary>
-    public async Task InitializeAsAnswerer(string offerSdp)
+    public async Task InitializeAsAnswerer(string offerBase64)
     {
         Console.WriteLine("[WebRTC] Initializing as answerer...");
 
         try
         {
-            // Create peer connection with STUN server
+            // Decode compressed offer
+            var offerBytes = SdpCodec.FromBase64(offerBase64);
+            var (offerSdp, _) = SdpCodec.Decode(offerBytes);
+            Console.WriteLine("[WebRTC] Decoded offer SDP from base64");
+
             var config = new RTCConfiguration
             {
-                iceServers = new System.Collections.Generic.List<RTCIceServer>
+                iceServers = new List<RTCIceServer>
                 {
                     new RTCIceServer { urls = "stun:stun.l.google.com:19302" }
                 }
             };
 
             _peerConnection = new RTCPeerConnection(config);
-
-            // Set up event handlers
             SetupPeerConnectionHandlers();
 
-            // Set remote description (offer)
             var result = _peerConnection.setRemoteDescription(new RTCSessionDescriptionInit
             {
                 type = RTCSdpType.offer,
@@ -141,18 +131,19 @@ public class WebRTCReceiver : IDisposable
                 throw new Exception($"Failed to set remote description: {result}");
             }
 
-            // Create answer
             var answer = _peerConnection.createAnswer();
             answer.sdp = SanitizeSdp(answer.sdp);
             await _peerConnection.setLocalDescription(answer);
 
-            Console.WriteLine("[WebRTC] Answer SDP generated");
-            Console.WriteLine("--- Answer SDP Start ---");
-            Console.WriteLine(answer.sdp);
-            Console.WriteLine("--- Answer SDP End ---");
-            Console.WriteLine();
+            Console.WriteLine("[WebRTC] Answer created, waiting for ICE gathering...");
 
-            AnswerGenerated?.Invoke(answer.sdp);
+            await WaitForIceGathering();
+
+            var compressed = SdpCodec.Encode(answer.sdp, false, _collectedIceCandidates.ToArray());
+            var base64 = SdpCodec.ToBase64(compressed);
+            Console.WriteLine($"[WebRTC] Compressed answer ready, base64 length: {base64.Length}");
+
+            CompressedSdpReady?.Invoke(base64, false);
         }
         catch (Exception ex)
         {
@@ -164,14 +155,18 @@ public class WebRTCReceiver : IDisposable
     }
 
     /// <summary>
-    /// Set remote answer (when PC is offerer)
+    /// Set remote answer (when PC is offerer, from compressed base64)
     /// </summary>
-    public void SetRemoteAnswer(string answerSdp)
+    public void SetRemoteAnswer(string answerBase64)
     {
         if (_peerConnection == null)
         {
             throw new InvalidOperationException("Peer connection not initialized");
         }
+
+        var answerBytes = SdpCodec.FromBase64(answerBase64);
+        var (answerSdp, _) = SdpCodec.Decode(answerBytes);
+        Console.WriteLine("[WebRTC] Decoded answer SDP from base64");
 
         var result = _peerConnection.setRemoteDescription(new RTCSessionDescriptionInit
         {
@@ -188,37 +183,28 @@ public class WebRTCReceiver : IDisposable
     }
 
     /// <summary>
-    /// Add ICE candidate from remote peer
-    /// </summary>
-    public void AddIceCandidate(RTCIceCandidateInit candidate)
-    {
-        if (_peerConnection == null)
-        {
-            throw new InvalidOperationException("Peer connection not initialized");
-        }
-
-        _peerConnection.addIceCandidate(candidate);
-        Console.WriteLine($"[WebRTC] ICE candidate added: {candidate.candidate}");
-    }
-
-    /// <summary>
     /// Set up peer connection event handlers
     /// </summary>
     private void SetupPeerConnectionHandlers()
     {
         if (_peerConnection == null) return;
 
-        // ICE candidate event
+        // Reset ICE gathering state
+        _collectedIceCandidates.Clear();
+        _iceGatheringTcs = new TaskCompletionSource<bool>();
+
+        // ICE candidate event - collect candidates internally
         _peerConnection.onicecandidate += (candidate) =>
         {
             if (candidate != null)
             {
-                Console.WriteLine($"[WebRTC] ICE candidate: {candidate.candidate}");
-                IceCandidateGenerated?.Invoke(candidate);
+                Console.WriteLine($"[WebRTC] ICE candidate collected: {candidate.candidate}");
+                _collectedIceCandidates.Add(candidate.candidate);
             }
             else
             {
-                Console.WriteLine("[WebRTC] ICE gathering completed");
+                Console.WriteLine("[WebRTC] ICE gathering completed (null candidate)");
+                _iceGatheringTcs?.TrySetResult(true);
             }
         };
 
@@ -242,6 +228,22 @@ public class WebRTCReceiver : IDisposable
             _dataChannel = dc;
             SetupDataChannelHandlers();
         };
+    }
+
+    /// <summary>
+    /// Wait for ICE gathering to complete or timeout
+    /// </summary>
+    private async Task WaitForIceGathering(int timeoutMs = 10000)
+    {
+        if (_iceGatheringTcs == null) return;
+
+        var timeoutTask = Task.Delay(timeoutMs);
+        var completed = await Task.WhenAny(_iceGatheringTcs.Task, timeoutTask);
+
+        if (completed == timeoutTask)
+        {
+            Console.WriteLine("[WebRTC] ICE gathering timed out, proceeding with collected candidates");
+        }
     }
 
     /// <summary>
@@ -273,15 +275,12 @@ public class WebRTCReceiver : IDisposable
             {
                 TrackingData trackingData;
 
-                // Deserialize based on data type
                 if (data.Length > 0)
                 {
-                    // Binary data (compressed format)
                     trackingData = _deserializer.Deserialize(data);
                 }
                 else
                 {
-                    // Should not happen, but handle gracefully
                     Console.WriteLine("[WebRTC] Received empty message");
                     return;
                 }
@@ -352,6 +351,8 @@ public class WebRTCReceiver : IDisposable
 
         _dataChannel = null;
         _peerConnection = null;
+        _collectedIceCandidates.Clear();
+        _iceGatheringTcs = null;
     }
 
     public void Dispose()
