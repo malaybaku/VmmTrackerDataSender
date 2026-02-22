@@ -35,6 +35,8 @@ const connectionStatus = document.getElementById('connection-status') as HTMLSpa
 const connectionModal = document.getElementById('connection-modal') as HTMLDivElement;
 const connectionModalMessage = document.getElementById('connection-modal-message') as HTMLParagraphElement;
 const connectionModalClose = document.getElementById('connection-modal-close') as HTMLButtonElement;
+const connectionModalConsent = document.getElementById('connection-modal-consent') as HTMLDivElement;
+const connectionModalSetupBtn = document.getElementById('connection-modal-setup-btn') as HTMLButtonElement;
 
 // ============================================================================
 // Manager Instances
@@ -64,15 +66,21 @@ let currentLandmarks: NormalizedLandmark[] | null = null;
 // ============================================================================
 
 let connectionModalCloseCallback: (() => void) | null = null;
+let connectionModalSetupCallback: (() => void) | null = null;
 
-function showConnectionModal(message: string, showCloseButton: boolean): void {
+function showConnectionModal(message: string, options?: {
+  showCloseButton?: boolean;
+  showConsentUI?: boolean;
+}): void {
   connectionModalMessage.textContent = message;
-  connectionModalClose.style.display = showCloseButton ? '' : 'none';
+  connectionModalClose.style.display = options?.showCloseButton ? '' : 'none';
+  connectionModalConsent.style.display = options?.showConsentUI ? '' : 'none';
   connectionModal.classList.add('open');
 }
 
 function hideConnectionModal(): void {
   connectionModal.classList.remove('open');
+  connectionModalConsent.style.display = 'none';
 }
 
 connectionModalClose.addEventListener('click', () => {
@@ -80,6 +88,14 @@ connectionModalClose.addEventListener('click', () => {
   if (connectionModalCloseCallback) {
     connectionModalCloseCallback();
     connectionModalCloseCallback = null;
+  }
+});
+
+connectionModalSetupBtn.addEventListener('click', () => {
+  connectionModalSetupBtn.disabled = true;
+  if (connectionModalSetupCallback) {
+    connectionModalSetupCallback();
+    connectionModalSetupCallback = null;
   }
 });
 
@@ -256,7 +272,7 @@ async function tryAutoSignaling(): Promise<void> {
 
   const { token, aesKey, offerBytes } = parsed;
 
-  showConnectionModal('接続中...', false);
+  showConnectionModal('接続中...');
 
   try {
     // Set up a promise to capture the compressed answer
@@ -274,9 +290,7 @@ async function tryAutoSignaling(): Promise<void> {
 
     const answerBytes = await answerReady;
 
-    showConnectionModal('応答を暗号化・送信中...', false);
-
-    // Encrypt the answer
+    // Encrypt the answer (prepare before user consent)
     const encrypted = await encryptAnswer(aesKey, answerBytes);
 
     // Convert to standard base64 for API
@@ -286,20 +300,34 @@ async function tryAutoSignaling(): Promise<void> {
     }
     const encryptedBase64 = btoa(binary);
 
-    // Send to Firebase
-    await putAnswer(token, encryptedBase64);
+    // Show consent UI and wait for user to tap the setup button
+    showConnectionModal('接続の準備ができました。', { showConsentUI: true });
 
-    // Remove fragment from URL to prevent re-triggering on reload
-    history.replaceState(null, '', window.location.pathname + window.location.search);
+    await new Promise<void>((resolve, reject) => {
+      connectionModalSetupCallback = async () => {
+        try {
+          showConnectionModal('応答を送信中...');
 
-    // Success: hide modal and start camera
-    hideConnectionModal();
-    await startCameraAndTracking();
+          // Send to Firebase
+          await putAnswer(token, encryptedBase64);
+
+          // Remove fragment from URL to prevent re-triggering on reload
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+
+          // Success: hide modal and start camera
+          hideConnectionModal();
+          await startCameraAndTracking();
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      };
+    });
 
   } catch (err) {
     console.error('[AutoSignaling] Failed:', err);
     const errorMessage = `接続に失敗しました: ${err instanceof Error ? err.message : String(err)}\n\nQRコードを再スキャンするか、閉じてローカルプレビューを使用してください。`;
-    showConnectionModal(errorMessage, true);
+    showConnectionModal(errorMessage, { showCloseButton: true });
     connectionModalCloseCallback = () => {
       startCameraAndTracking();
     };
@@ -319,7 +347,7 @@ if (window.location.hash && parseFragment(window.location.hash)) {
   // No-fragment mode: show info dialog
   showConnectionModal(
     'PCのQRコードをスキャンして接続してください。\nこのまま続けるとローカルプレビューのみ使用できます。',
-    true
+    { showCloseButton: true }
   );
   connectionModalCloseCallback = () => {
     startCameraAndTracking();
