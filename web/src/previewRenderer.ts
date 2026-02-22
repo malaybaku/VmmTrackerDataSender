@@ -13,7 +13,7 @@ export class PreviewRenderer {
   private overlay: HTMLDivElement;
   private video: HTMLVideoElement;
   private ctx: CanvasRenderingContext2D;
-  private currentMode: PreviewMode = PreviewMode.StatusDataLandmarks;
+  private currentMode: PreviewMode = PreviewMode.Landmarks;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -41,13 +41,15 @@ export class PreviewRenderer {
     this.currentMode = mode;
 
     // Show/hide video and canvas based on mode
-    if (mode === PreviewMode.VideoRaw) {
+    if (mode === PreviewMode.Camera) {
       this.video.style.display = 'block';
-      this.canvas.style.display = 'none';
+      this.canvas.style.display = 'block';
+      this.canvas.classList.add('canvas-overlay');
       this.overlay.style.display = 'block';
     } else {
       this.video.style.display = 'none';
       this.canvas.style.display = 'block';
+      this.canvas.classList.remove('canvas-overlay');
       this.overlay.style.display = 'block';
     }
   }
@@ -69,14 +71,14 @@ export class PreviewRenderer {
     landmarks: NormalizedLandmark[] | null
   ): void {
     switch (this.currentMode) {
-      case PreviewMode.StatusData:
-        this.renderStatusData(status, headPose, euler);
+      case PreviewMode.DataOnly:
+        this.renderDataOnly(status, headPose, euler);
         break;
-      case PreviewMode.StatusDataLandmarks:
-        this.renderStatusDataLandmarks(status, headPose, euler, landmarks);
+      case PreviewMode.Landmarks:
+        this.renderLandmarks(status, headPose, euler, landmarks);
         break;
-      case PreviewMode.VideoRaw:
-        this.renderVideoRaw(status, headPose, euler);
+      case PreviewMode.Camera:
+        this.renderCamera(status, headPose, euler, landmarks);
         break;
     }
   }
@@ -84,7 +86,7 @@ export class PreviewRenderer {
   /**
    * Mode B: Status + numerical data
    */
-  private renderStatusData(
+  private renderDataOnly(
     status: TrackingStatus,
     headPose: HeadPose | null,
     euler: EulerAngles | null
@@ -122,7 +124,7 @@ export class PreviewRenderer {
   /**
    * Mode C: Status + numerical data + landmarks
    */
-  private renderStatusDataLandmarks(
+  private renderLandmarks(
     status: TrackingStatus,
     headPose: HeadPose | null,
     euler: EulerAngles | null,
@@ -172,11 +174,26 @@ export class PreviewRenderer {
   /**
    * Mode D: Video raw with status and data overlay
    */
-  private renderVideoRaw(
+  private renderCamera(
     status: TrackingStatus,
     headPose: HeadPose | null,
-    euler: EulerAngles | null
+    euler: EulerAngles | null,
+    landmarks: NormalizedLandmark[] | null
   ): void {
+    // Resize canvas to match video dimensions for landmark overlay
+    if (this.video.videoWidth > 0 && this.video.videoHeight > 0) {
+      this.canvas.width = this.video.videoWidth;
+      this.canvas.height = this.video.videoHeight;
+    }
+
+    // Clear canvas with transparent background (video shows through)
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Draw landmarks overlay if available
+    if (landmarks && status === 'tracking-success') {
+      this.drawLandmarks(landmarks);
+    }
+
     // Video element is displayed directly, just update overlay with status and data
     const { icon, text, color } = this.getStatusInfo(status);
 

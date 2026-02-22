@@ -40,6 +40,13 @@ body {
   display: none;
 }
 
+#preview-canvas.canvas-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
 #preview-overlay {
   position: absolute;
   top: 0;

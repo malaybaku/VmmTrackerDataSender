@@ -61,9 +61,9 @@ export type StatusType = 'normal' | 'connected' | 'error';
  * Preview mode for video display
  */
 export enum PreviewMode {
-  StatusData = 'status-data',
-  StatusDataLandmarks = 'status-data-landmarks',
-  VideoRaw = 'video-raw'
+  DataOnly = 'data-only',
+  Landmarks = 'landmarks',
+  Camera = 'camera'
 }
 
 /**

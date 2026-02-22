@@ -205,7 +205,7 @@ function updatePreview(): void {
 function startPreviewAnimationLoop(): void {
   function animate(): void {
     const mode = previewRenderer.getMode();
-    if (mode === PreviewMode.StatusDataLandmarks) {
+    if (mode === PreviewMode.Landmarks || mode === PreviewMode.Camera) {
       updatePreview();
     }
     requestAnimationFrame(animate);
