@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
@@ -57,7 +58,7 @@ public partial class MainWindow : Window
 
             _cts = new CancellationTokenSource();
             _receiver = new WebRTCReceiver(deserializer);
-            _receiver.Log = msg => Dispatcher.Invoke(() => AppendLog(msg));
+            _receiver.Log = msg => Dispatcher.BeginInvoke(() => AppendLog(msg));
 
             SetupReceiverHandlers();
 
@@ -75,7 +76,8 @@ public partial class MainWindow : Window
                 if (isOffer) offerTcs.TrySetResult(data);
             };
 
-            await _receiver.InitializeAsOfferer();
+            // Run WebRTC initialization off the UI thread
+            await Task.Run(async () => await _receiver.InitializeAsOfferer());
             var offerBytes = await offerTcs.Task;
 
             // Build URL and show QR
@@ -122,7 +124,8 @@ public partial class MainWindow : Window
             var encryptedData = Convert.FromBase64String(encryptedBase64);
             var answerBytes = decryptor.Decrypt(_aesKey, encryptedData);
 
-            _receiver.SetRemoteAnswer(answerBytes);
+            // Run SetRemoteAnswer off the UI thread
+            await Task.Run(() => _receiver.SetRemoteAnswer(answerBytes));
             SetStatus("接続確立中...");
 
             // Reset FPS counter
@@ -139,7 +142,7 @@ public partial class MainWindow : Window
                 catch (OperationCanceledException) { }
                 catch (Exception ex)
                 {
-                    Dispatcher.Invoke(() => SetStatus($"接続失敗: {ex.Message}"));
+                    Dispatcher.BeginInvoke(() => SetStatus($"接続失敗: {ex.Message}"));
                 }
             });
         }
@@ -157,7 +160,7 @@ public partial class MainWindow : Window
 
         _receiver.ConnectionStateChanged += state =>
         {
-            Dispatcher.Invoke(() =>
+            Dispatcher.BeginInvoke(() =>
             {
                 var text = state switch
                 {
@@ -214,12 +217,12 @@ public partial class MainWindow : Window
                 text += $"  ... ({data.BlendShapes.Length - 10} more)";
             }
 
-            Dispatcher.Invoke(() => TrackingDataText.Text = text);
+            Dispatcher.BeginInvoke(() => TrackingDataText.Text = text);
         };
 
         _receiver.ErrorOccurred += error =>
         {
-            Dispatcher.Invoke(() => AppendLog($"[ERROR] {error}"));
+            Dispatcher.BeginInvoke(() => AppendLog($"[ERROR] {error}"));
         };
     }
 
