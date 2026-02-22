@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { resolve } from 'path'
 
 export default defineConfig(({ command }) => ({
   // Use base path only for production builds (GitHub Pages)
@@ -7,7 +8,14 @@ export default defineConfig(({ command }) => ({
   build: {
     outDir: 'dist',
     sourcemap: true,
-    target: 'es2020'
+    target: 'es2020',
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        licenses: resolve(__dirname, 'licenses.html'),
+        'privacy-policy': resolve(__dirname, 'privacy-policy.html'),
+      },
+    },
   },
   server: {
     port: 3000,
