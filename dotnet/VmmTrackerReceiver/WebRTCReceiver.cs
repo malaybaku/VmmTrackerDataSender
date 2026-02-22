@@ -32,9 +32,9 @@ public class WebRTCReceiver : IDisposable
     public event Action<string>? ErrorOccurred;
 
     /// <summary>
-    /// Event fired when compressed SDP (base64) is ready
+    /// Event fired when compressed SDP (binary) is ready
     /// </summary>
-    public event Action<string, bool>? CompressedSdpReady;
+    public event Action<byte[], bool>? CompressedSdpReady;
 
     /// <summary>
     /// Event fired when connection state changes
@@ -81,10 +81,9 @@ public class WebRTCReceiver : IDisposable
             await WaitForIceGathering();
 
             var compressed = SdpCodec.Encode(offer.sdp, true, _collectedIceCandidates.ToArray());
-            var base64 = SdpCodec.ToBase64(compressed);
-            Console.WriteLine($"[WebRTC] Compressed offer ready, base64 length: {base64.Length}");
+            Console.WriteLine($"[WebRTC] Compressed offer ready, byte length: {compressed.Length}");
 
-            CompressedSdpReady?.Invoke(base64, true);
+            CompressedSdpReady?.Invoke(compressed, true);
         }
         catch (Exception ex)
         {
@@ -98,16 +97,15 @@ public class WebRTCReceiver : IDisposable
     /// <summary>
     /// Initialize as answerer (PC side receives compressed offer from web)
     /// </summary>
-    public async Task InitializeAsAnswerer(string offerBase64)
+    public async Task InitializeAsAnswerer(byte[] offerBytes)
     {
         Console.WriteLine("[WebRTC] Initializing as answerer...");
 
         try
         {
             // Decode compressed offer
-            var offerBytes = SdpCodec.FromBase64(offerBase64);
             var (offerSdp, _) = SdpCodec.Decode(offerBytes);
-            Console.WriteLine("[WebRTC] Decoded offer SDP from base64");
+            Console.WriteLine("[WebRTC] Decoded offer SDP");
 
             var config = new RTCConfiguration
             {
@@ -140,10 +138,9 @@ public class WebRTCReceiver : IDisposable
             await WaitForIceGathering();
 
             var compressed = SdpCodec.Encode(answer.sdp, false, _collectedIceCandidates.ToArray());
-            var base64 = SdpCodec.ToBase64(compressed);
-            Console.WriteLine($"[WebRTC] Compressed answer ready, base64 length: {base64.Length}");
+            Console.WriteLine($"[WebRTC] Compressed answer ready, byte length: {compressed.Length}");
 
-            CompressedSdpReady?.Invoke(base64, false);
+            CompressedSdpReady?.Invoke(compressed, false);
         }
         catch (Exception ex)
         {
@@ -155,18 +152,17 @@ public class WebRTCReceiver : IDisposable
     }
 
     /// <summary>
-    /// Set remote answer (when PC is offerer, from compressed base64)
+    /// Set remote answer (when PC is offerer, from compressed binary)
     /// </summary>
-    public void SetRemoteAnswer(string answerBase64)
+    public void SetRemoteAnswer(byte[] answerBytes)
     {
         if (_peerConnection == null)
         {
             throw new InvalidOperationException("Peer connection not initialized");
         }
 
-        var answerBytes = SdpCodec.FromBase64(answerBase64);
         var (answerSdp, _) = SdpCodec.Decode(answerBytes);
-        Console.WriteLine("[WebRTC] Decoded answer SDP from base64");
+        Console.WriteLine("[WebRTC] Decoded answer SDP");
 
         var result = _peerConnection.setRemoteDescription(new RTCSessionDescriptionInit
         {

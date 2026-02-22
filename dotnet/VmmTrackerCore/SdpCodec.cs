@@ -190,12 +190,6 @@ public static class SdpCodec
         return (sb.ToString(), isOffer);
     }
 
-    /// <summary>Encode binary data to base64.</summary>
-    public static string ToBase64(byte[] data) => Convert.ToBase64String(data);
-
-    /// <summary>Decode base64 string to binary data.</summary>
-    public static byte[] FromBase64(string str) => Convert.FromBase64String(str);
-
     // ── Internal helpers ──
 
     private static byte[] HexColonToBytes(string hexColon)

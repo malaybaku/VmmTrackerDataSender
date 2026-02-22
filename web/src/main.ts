@@ -127,8 +127,14 @@ webrtcManager.onDataChannelStateChange = (state) => {
   }
 };
 
-webrtcManager.onCompressedSdpReady = (base64, type) => {
-  console.log(`[Main] Compressed ${type} SDP ready, length: ${base64.length}`);
+webrtcManager.onCompressedSdpReady = (data, type) => {
+  // Temporary: convert to base64 for textarea display (will be replaced by new UX)
+  let binary = '';
+  for (let i = 0; i < data.length; i++) {
+    binary += String.fromCharCode(data[i]!);
+  }
+  const base64 = btoa(binary);
+  console.log(`[Main] Compressed ${type} SDP ready, length: ${data.length}`);
   if (type === 'offer') {
     webrtcOfferSdp.value = base64;
   } else {
@@ -201,8 +207,14 @@ webrtcInitAnswererBtn.addEventListener('click', async () => {
   }
 
   try {
+    // Temporary: convert from base64 textarea input (will be replaced by new UX)
+    const binary = atob(offerBase64);
+    const offerBytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      offerBytes[i] = binary.charCodeAt(i);
+    }
     uiManager.updateStatus('Initializing WebRTC as answerer (gathering ICE)...', 'normal');
-    await webrtcManager.initializeAsAnswerer(offerBase64);
+    await webrtcManager.initializeAsAnswerer(offerBytes);
     uiManager.updateStatus('Compressed answer ready. Copy and send to remote peer.', 'normal');
   } catch (err) {
     console.error('[Main] Failed to initialize as answerer:', err);
@@ -236,8 +248,14 @@ webrtcSetAnswerBtn.addEventListener('click', async () => {
   }
 
   try {
+    // Temporary: convert from base64 textarea input (will be replaced by new UX)
+    const binary = atob(answerBase64);
+    const answerBytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      answerBytes[i] = binary.charCodeAt(i);
+    }
     uiManager.updateStatus('Setting remote answer...', 'normal');
-    await webrtcManager.setRemoteAnswer(answerBase64);
+    await webrtcManager.setRemoteAnswer(answerBytes);
     uiManager.updateStatus('Remote answer set. Connection establishing...', 'normal');
   } catch (err) {
     console.error('[Main] Failed to set answer:', err);

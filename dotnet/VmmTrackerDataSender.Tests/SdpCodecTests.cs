@@ -254,28 +254,4 @@ public class SdpCodecTests
         Assert.Contains("9999 typ host", sdp);
     }
 
-    // ── Base64 tests ──
-
-    [Fact]
-    public void Base64_Roundtrip_Tv1()
-    {
-        var b64 = SdpCodec.ToBase64(Tv1ExpectedBytes);
-        var decoded = SdpCodec.FromBase64(b64);
-        Assert.Equal(Tv1ExpectedBytes, decoded);
-    }
-
-    [Fact]
-    public void Base64_Roundtrip_Tv2()
-    {
-        var b64 = SdpCodec.ToBase64(Tv2ExpectedBytes);
-        var decoded = SdpCodec.FromBase64(b64);
-        Assert.Equal(Tv2ExpectedBytes, decoded);
-    }
-
-    [Fact]
-    public void Base64_ProducesValidString()
-    {
-        var b64 = SdpCodec.ToBase64(Tv1ExpectedBytes);
-        Assert.Matches(@"^[A-Za-z0-9+/]+=*$", b64);
-    }
 }

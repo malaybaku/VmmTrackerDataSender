@@ -71,8 +71,10 @@ class Program
             Console.ResetColor();
         };
 
-        receiver.CompressedSdpReady += (base64, isOffer) =>
+        // Temporary: convert to base64 for console display (will be replaced by new UX)
+        receiver.CompressedSdpReady += (data, isOffer) =>
         {
+            var base64 = Convert.ToBase64String(data);
             var label = isOffer ? "Offer" : "Answer";
             Console.WriteLine();
             Console.WriteLine($"--- Compressed {label} (base64) ---");
@@ -98,6 +100,7 @@ class Program
             Console.WriteLine();
             Console.WriteLine("Paste the compressed answer (base64, single line) from the remote peer:");
 
+            // Temporary: convert from base64 console input (will be replaced by new UX)
             string? answerBase64 = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(answerBase64))
             {
@@ -105,7 +108,7 @@ class Program
                 return;
             }
 
-            receiver.SetRemoteAnswer(answerBase64.Trim());
+            receiver.SetRemoteAnswer(Convert.FromBase64String(answerBase64.Trim()));
             Console.WriteLine();
             Console.WriteLine("Remote answer set. Waiting for connection...");
         }
@@ -114,6 +117,7 @@ class Program
             // PC receives offer from web
             Console.WriteLine("Paste the compressed offer (base64, single line) from the remote peer:");
 
+            // Temporary: convert from base64 console input (will be replaced by new UX)
             string? offerBase64 = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(offerBase64))
             {
@@ -121,7 +125,7 @@ class Program
                 return;
             }
 
-            await receiver.InitializeAsAnswerer(offerBase64.Trim());
+            await receiver.InitializeAsAnswerer(Convert.FromBase64String(offerBase64.Trim()));
             Console.WriteLine();
         }
         else

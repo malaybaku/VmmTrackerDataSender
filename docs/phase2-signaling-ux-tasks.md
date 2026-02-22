@@ -25,8 +25,8 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
 
 - **Phase 2-A (SDP圧縮プロトコル)**: ✅ 完了 (4/4タスク)
 - **Phase 2-B (ライブラリ導入 + Vanilla ICE)**: ✅ 完了 (3/3タスク)
-- **Phase 2-C (Web側UX)**: 🔶 一部完了 (2/5タスク) — C-4, C-5は2-Bで実施済み、C-1〜C-3が残り
-- **Phase 2-D (.NET側UX)**: 🔶 一部完了 (2/4タスク) — D-3, D-4は2-Bで実施済み、D-1〜D-2が残り
+- **Phase 2-C (Web側UX)**: 🔶 一部完了 (4/5タスク) — C-2, C-3はUX変更により不要化、C-1が残り
+- **Phase 2-D (.NET側UX)**: 🔶 一部完了 (3/4タスク) — D-2はUX変更により不要化、D-1が残り
 - **Phase 2-E (統合テスト)**: ⏳ 未実施 (0/3タスク)
 
 ---
@@ -105,16 +105,13 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
     - Step 4: 接続完了表示
   - フォーマット選択（compressed/readable）はUIに残す
 
-- [ ] **Task C-2**: QRスキャン機能（Offer読み取り）
-  - カメラを使ったQRスキャンモードの実装
-  - スキャン成功時にカメラモードをフェイストラッキング用に自動切替
-  - スキャン中のプレビュー表示
-  - スキャン失敗時のエラーハンドリング
+- [x] **Task C-2**: ~~QRスキャン機能（Offer読み取り）~~ — **UX変更により不要**
+  - 新UXではQRコードにWebページURLが含まれ、モバイルの標準QRリーダーでブラウザが起動する
+  - OfferはURLパラメータとしてWebページに渡されるため、アプリ内QRスキャン機能は不要
 
-- [ ] **Task C-3**: QR/base64表示機能（Answer表示）
-  - 圧縮Answer SDPからQRコード画像を生成・表示
-  - 同時にbase64テキストを表示（コピーボタン付き）
-  - QRコードは画面上で十分なサイズで表示（PC webcamでスキャンしやすいように）
+- [x] **Task C-3**: ~~QR/base64表示機能（Answer表示）~~ — **UX変更により不要**
+  - 新UXではAnswerをFirebaseバックエンドAPI経由でPCに送信する
+  - モバイル側でAnswer QRコードを表示する必要がなくなった
 
 - [x] **Task C-4**: WebRTCManagerの改修（Phase 2-Bで実施済み）
   - Vanilla ICE対応: Offer受信 → Answer生成 → ICE収集完了待ち → 圧縮SDP出力
@@ -135,11 +132,9 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
   - コンソールでのQR表示方法を実装（ASCII art or 画像ファイル表示）
   - 同時にbase64テキストもコンソール出力（コピー用）
 
-- [ ] **Task D-2**: QRスキャン機能（Answer読み取り）
-  - webcamからのフレームキャプチャ
-  - ZXing.NetでQRデコード
-  - スキャン成功時のAnswer SDP復元・設定
-  - webcamがない場合のフォールバック: base64テキストのコンソール入力
+- [x] **Task D-2**: ~~QRスキャン機能（Answer読み取り）~~ — **UX変更により不要**
+  - 新UXではPC側がFirebaseバックエンドAPIからセッショントークンを指定してAnswerをGETする
+  - webcamスキャン・ZXing.Net・base64テキスト手動入力はすべて不要
 
 - [x] **Task D-3**: WebRTCReceiverの改修（Phase 2-Bで実施済み）
   - Vanilla ICE対応

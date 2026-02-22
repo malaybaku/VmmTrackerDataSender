@@ -172,24 +172,6 @@ export function decodeSdp(data: Uint8Array): {
   return { sdp, type: sdpType };
 }
 
-/** Encode binary data to base64. */
-export function toBase64(data: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < data.length; i++) {
-    binary += String.fromCharCode(data[i]!);
-  }
-  return btoa(binary);
-}
-
-/** Decode base64 string to binary data. */
-export function fromBase64(str: string): Uint8Array {
-  const binary = atob(str);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
 
 // ── Internal helpers ──
 

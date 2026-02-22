@@ -6,7 +6,7 @@
 import type { TrackingData, SerializationFormat } from './types';
 import { WebRTCConnectionState, WebRTCDataChannelState } from './types';
 import { serializeReadable, serializeCompressed } from './serializers';
-import { encodeSdp, decodeSdp, toBase64, fromBase64 } from './sdp-codec';
+import { encodeSdp, decodeSdp } from './sdp-codec';
 
 export class WebRTCManager {
   private peerConnection: RTCPeerConnection | null = null;
@@ -21,7 +21,7 @@ export class WebRTCManager {
   // Event handlers
   public onConnectionStateChange: ((state: WebRTCConnectionState) => void) | null = null;
   public onDataChannelStateChange: ((state: WebRTCDataChannelState) => void) | null = null;
-  public onCompressedSdpReady: ((base64: string, type: 'offer' | 'answer') => void) | null = null;
+  public onCompressedSdpReady: ((data: Uint8Array, type: 'offer' | 'answer') => void) | null = null;
   public onError: ((error: Error) => void) | null = null;
 
   /**
@@ -55,11 +55,10 @@ export class WebRTCManager {
       await this.waitForIceGathering();
 
       const compressed = encodeSdp(offer.sdp!, 'offer', this.collectedIceCandidates);
-      const base64 = toBase64(compressed);
-      console.log('[WebRTC] Compressed offer ready, base64 length:', base64.length);
+      console.log('[WebRTC] Compressed offer ready, byte length:', compressed.length);
 
       if (this.onCompressedSdpReady) {
-        this.onCompressedSdpReady(base64, 'offer');
+        this.onCompressedSdpReady(compressed, 'offer');
       }
     } catch (error) {
       console.error('[WebRTC] Failed to initialize as offerer:', error);
@@ -74,14 +73,13 @@ export class WebRTCManager {
   /**
    * Initialize WebRTC peer connection as answerer
    */
-  async initializeAsAnswerer(offerBase64: string): Promise<void> {
+  async initializeAsAnswerer(offerBytes: Uint8Array): Promise<void> {
     console.log('[WebRTC] Initializing as answerer...');
 
     try {
       // Decode compressed offer
-      const offerBytes = fromBase64(offerBase64);
       const { sdp: offerSdp } = decodeSdp(offerBytes);
-      console.log('[WebRTC] Decoded offer SDP from base64');
+      console.log('[WebRTC] Decoded offer SDP');
 
       this.peerConnection = new RTCPeerConnection({
         iceServers: [
@@ -105,11 +103,10 @@ export class WebRTCManager {
       await this.waitForIceGathering();
 
       const compressed = encodeSdp(answer.sdp!, 'answer', this.collectedIceCandidates);
-      const base64 = toBase64(compressed);
-      console.log('[WebRTC] Compressed answer ready, base64 length:', base64.length);
+      console.log('[WebRTC] Compressed answer ready, byte length:', compressed.length);
 
       if (this.onCompressedSdpReady) {
-        this.onCompressedSdpReady(base64, 'answer');
+        this.onCompressedSdpReady(compressed, 'answer');
       }
     } catch (error) {
       console.error('[WebRTC] Failed to initialize as answerer:', error);
@@ -122,17 +119,16 @@ export class WebRTCManager {
   }
 
   /**
-   * Set remote description (answer from remote peer, as compressed base64)
+   * Set remote description (answer from remote peer, as compressed binary)
    */
-  async setRemoteAnswer(answerBase64: string): Promise<void> {
+  async setRemoteAnswer(answerBytes: Uint8Array): Promise<void> {
     if (!this.peerConnection) {
       throw new Error('Peer connection not initialized');
     }
 
     try {
-      const answerBytes = fromBase64(answerBase64);
       const { sdp: answerSdp } = decodeSdp(answerBytes);
-      console.log('[WebRTC] Decoded answer SDP from base64');
+      console.log('[WebRTC] Decoded answer SDP');
 
       await this.peerConnection.setRemoteDescription({
         type: 'answer',

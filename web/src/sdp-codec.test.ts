@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodeSdp, decodeSdp, toBase64, fromBase64 } from './sdp-codec';
+import { encodeSdp, decodeSdp } from './sdp-codec';
 
 // ── Shared Test Vectors ──
 // These exact values must match the C# tests for interoperability.
@@ -269,24 +269,4 @@ describe('SDP Codec', () => {
     });
   });
 
-  describe('base64 roundtrip', () => {
-    it('should roundtrip binary through base64', () => {
-      const original = TV1_EXPECTED_BYTES;
-      const b64 = toBase64(original);
-      const decoded = fromBase64(b64);
-      expect(decoded).toEqual(original);
-    });
-
-    it('should roundtrip TV2 through base64', () => {
-      const original = TV2_EXPECTED_BYTES;
-      const b64 = toBase64(original);
-      const decoded = fromBase64(b64);
-      expect(decoded).toEqual(original);
-    });
-
-    it('should produce valid base64 string', () => {
-      const b64 = toBase64(TV1_EXPECTED_BYTES);
-      expect(b64).toMatch(/^[A-Za-z0-9+/]+=*$/);
-    });
-  });
 });
