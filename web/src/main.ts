@@ -3,8 +3,8 @@
  * Face tracking using MediaPipe and data transmission via WebRTC
  */
 
-import { VideoSourceState, PreviewMode, TrackingStatus } from './types';
-import type { HeadPose, EulerAngles, SerializationFormat } from './types';
+import { PreviewMode, TrackingStatus } from './types';
+import type { HeadPose, EulerAngles } from './types';
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { VideoSourceManager } from './videoSource';
 import { MediaPipeManager } from './mediapipe';
@@ -24,10 +24,7 @@ const video = document.getElementById('video') as HTMLVideoElement;
 const previewCanvas = document.getElementById('preview-canvas') as HTMLCanvasElement;
 const previewOverlay = document.getElementById('preview-overlay') as HTMLDivElement;
 
-const webrtcFormatSelect = document.getElementById('webrtc-format-select') as HTMLSelectElement;
 const previewModeSelect = document.getElementById('preview-mode-select') as HTMLSelectElement;
-const startCameraBtn = document.getElementById('start-camera-btn') as HTMLButtonElement;
-const stopTrackingBtn = document.getElementById('stop-tracking-btn') as HTMLButtonElement;
 const statusSpan = document.getElementById('status') as HTMLSpanElement;
 const connectionStatus = document.getElementById('connection-status') as HTMLSpanElement;
 
@@ -45,11 +42,7 @@ const connectionModalSetupBtn = document.getElementById('connection-modal-setup-
 const videoSourceManager = new VideoSourceManager(video);
 const mediapipeManager = new MediaPipeManager();
 const webrtcManager = new WebRTCManager();
-const uiManager = new UIManager(
-  statusSpan,
-  startCameraBtn,
-  stopTrackingBtn
-);
+const uiManager = new UIManager(statusSpan);
 const previewRenderer = new PreviewRenderer(previewCanvas, previewOverlay, video);
 
 // ============================================================================
@@ -104,8 +97,6 @@ connectionModalSetupBtn.addEventListener('click', () => {
 // ============================================================================
 
 async function startCameraAndTracking(): Promise<void> {
-  uiManager.updateButtonStates(VideoSourceState.Busy);
-
   try {
     uiManager.updateStatus('Starting camera...', 'normal');
     await videoSourceManager.startCamera();
@@ -130,8 +121,8 @@ async function startCameraAndTracking(): Promise<void> {
 // ============================================================================
 
 // Video Source State Changes
-videoSourceManager.onStateChange = (newState) => {
-  uiManager.updateButtonStates(newState);
+videoSourceManager.onStateChange = () => {
+  // State tracked internally; no UI buttons to update
 };
 
 // MediaPipe Events
@@ -145,8 +136,7 @@ mediapipeManager.onError = (error) => {
 };
 
 mediapipeManager.onTrackingData = (data) => {
-  const format = webrtcFormatSelect.value as SerializationFormat;
-  webrtcManager.sendTrackingData(data, format);
+  webrtcManager.sendTrackingData(data, 'compressed');
 
   currentHeadPose = data.headPose;
   currentEuler = quaternionToEuler({
@@ -236,32 +226,6 @@ previewModeSelect.addEventListener('change', () => {
   updatePreview();
 });
 
-// Start Camera (manual fallback)
-startCameraBtn.addEventListener('click', () => {
-  startCameraAndTracking();
-});
-
-// Stop Tracking
-stopTrackingBtn.addEventListener('click', () => {
-  uiManager.updateButtonStates(VideoSourceState.Busy);
-
-  try {
-    mediapipeManager.stopTracking();
-
-    const state = videoSourceManager.getState();
-    if (state === VideoSourceState.CameraRunning) {
-      videoSourceManager.stop();
-      uiManager.updateStatus('Camera stopped', 'normal');
-    } else if (state === VideoSourceState.VideoRunning) {
-      videoSourceManager.pause();
-      uiManager.updateStatus('Video paused', 'normal');
-    }
-  } catch (err) {
-    console.error('[Main] Failed to stop tracking:', err);
-    uiManager.updateStatus('Failed to stop tracking', 'error');
-  }
-});
-
 // ============================================================================
 // Auto-Signaling (URL fragment-based)
 // ============================================================================
@@ -337,8 +301,6 @@ async function tryAutoSignaling(): Promise<void> {
 // ============================================================================
 // Initialization
 // ============================================================================
-
-uiManager.updateButtonStates(VideoSourceState.None);
 
 if (window.location.hash && parseFragment(window.location.hash)) {
   // Auto mode: fragment present
