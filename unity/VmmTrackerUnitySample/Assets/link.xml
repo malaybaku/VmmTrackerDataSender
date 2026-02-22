@@ -1,0 +1,5 @@
+<linker>
+  <assembly fullname="System.Text.Json" preserve="all"/>
+  <assembly fullname="System.Text.Encodings.Web" preserve="all"/>
+  <assembly fullname="VmmTrackerCore" preserve="all"/>
+</linker>
