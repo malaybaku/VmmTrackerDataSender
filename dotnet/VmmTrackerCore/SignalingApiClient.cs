@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace VmmTrackerReceiver;
+namespace VmmTrackerCore;
 
 public class SignalingApiClient : IDisposable
 {
@@ -40,7 +40,7 @@ public class SignalingApiClient : IDisposable
 
                 if (response.StatusCode == System.Net.HttpStatusCode.OK)
                 {
-                    var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                    var json = await response.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(json);
                     if (doc.RootElement.TryGetProperty("answer", out var answerElement))
                     {

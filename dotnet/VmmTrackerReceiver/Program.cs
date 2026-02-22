@@ -108,18 +108,20 @@ class Program
         Console.WriteLine(url);
         Console.WriteLine();
 
-        // 4. Display ASCII QR code
+        // 4. Save QR code as PNG file
         try
         {
             using var qrGenerator = new QRCodeGenerator();
             var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.L);
-            var asciiQr = new AsciiQRCode(qrData);
-            var qrString = asciiQr.GetGraphic(1);
-            Console.WriteLine(qrString);
+            var pngQr = new PngByteQRCode(qrData);
+            var pngBytes = pngQr.GetGraphic(10);
+            var qrPath = Path.Combine(AppContext.BaseDirectory, "qrcode.png");
+            File.WriteAllBytes(qrPath, pngBytes);
+            Console.WriteLine($"QR code saved to: {qrPath}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Warning] Could not generate QR code: {ex.Message}");
+            Console.WriteLine($"[Warning] Could not save QR code: {ex.Message}");
         }
 
         Console.WriteLine();
@@ -145,8 +147,9 @@ class Program
         Console.WriteLine("Answer received! Decrypting...");
 
         // 6. Decrypt
+        IAnswerDecryptor decryptor = new AesGcmAnswerDecryptor();
         var encryptedData = Convert.FromBase64String(encryptedBase64);
-        var answerBytes = SignalingCrypto.Decrypt(aesKey, encryptedData);
+        var answerBytes = decryptor.Decrypt(aesKey, encryptedData);
 
         // 7. Set remote answer
         receiver.SetRemoteAnswer(answerBytes);

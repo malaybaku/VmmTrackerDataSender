@@ -1,6 +1,6 @@
 using System;
 
-namespace VmmTrackerReceiver;
+namespace VmmTrackerCore;
 
 public static class SignalingUrl
 {

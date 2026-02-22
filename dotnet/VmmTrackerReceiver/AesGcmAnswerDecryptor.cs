@@ -1,33 +1,16 @@
 using System;
 using System.Security.Cryptography;
+using VmmTrackerCore;
 
 namespace VmmTrackerReceiver;
 
-public static class SignalingCrypto
+/// <summary>
+/// AES-128-GCM implementation of IAnswerDecryptor.
+/// Requires .NET Core 3.0+ (not available in .NET Standard 2.1 runtimes without AesGcm support).
+/// </summary>
+public class AesGcmAnswerDecryptor : IAnswerDecryptor
 {
-    /// <summary>
-    /// Generate a random AES-128 key (16 bytes)
-    /// </summary>
-    public static byte[] GenerateKey()
-    {
-        var key = new byte[SignalingConfig.AesKeySize];
-        RandomNumberGenerator.Fill(key);
-        return key;
-    }
-
-    /// <summary>
-    /// Generate a session token (UUID v4)
-    /// </summary>
-    public static string GenerateToken()
-    {
-        return Guid.NewGuid().ToString();
-    }
-
-    /// <summary>
-    /// Decrypt AES-128-GCM encrypted data.
-    /// Input layout: IV[12] || ciphertext[N] || authTag[16]
-    /// </summary>
-    public static byte[] Decrypt(byte[] key, byte[] encryptedData)
+    public byte[] Decrypt(byte[] key, byte[] encryptedData)
     {
         if (encryptedData.Length < SignalingConfig.AesIvSize + SignalingConfig.AesTagSize)
         {

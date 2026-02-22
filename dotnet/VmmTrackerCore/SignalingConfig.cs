@@ -1,4 +1,4 @@
-namespace VmmTrackerReceiver;
+namespace VmmTrackerCore;
 
 public static class SignalingConfig
 {
