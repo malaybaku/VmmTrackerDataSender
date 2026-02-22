@@ -1,133 +1,92 @@
-# VMM Tracker Data Receiver - .NET Application
+# VMM Tracker Data Receiver - .NET
 
-WebSocket server application for receiving face tracking data.
+WebRTC DataChannel 経由で顔トラッキングデータを受信する .NET アプリケーション群。
 
-## Tech Stack
-
-- **.NET 8**: Console application (reference implementation)
-- **.NET Standard 2.1**: Core library (Unity/WPF compatible)
-- **System.Net.WebSockets**: WebSocket server
-- **System.Text.Json**: JSON deserialization
-
-## Project Structure
+## プロジェクト構成
 
 ```
 dotnet/
-├── VmmTrackerReceiver/       # Console application (.NET 8)
-│   └── Program.cs
-├── VmmTrackerCore/           # Core library (.NET Standard 2.1)
-│   ├── TrackingData.cs       # Data models
-│   ├── ITrackingDataDeserializer.cs
-│   ├── CompressedDeserializer.cs
-│   ├── ReadableDeserializer.cs
-│   └── WebSocketServer.cs
-├── VmmTrackerDataSender.sln
-└── README.md
+├── VmmTrackerCore/           # 共通ライブラリ (.NET Standard 2.1)
+├── VmmTrackerWebRtc/         # WebRTC受信ライブラリ (.NET 8.0)
+├── VmmTrackerReceiver/       # コンソールアプリ (.NET 8.0)
+├── VmmTrackerWpf/            # WPFサンプルアプリ (.NET 8.0-windows)
+├── VmmTrackerDataSender.Tests/  # ユニットテスト (.NET 8.0)
+└── VmmTrackerDataSender.sln
 ```
 
-## Build
+## 各プロジェクトの概要と参照パッケージ
+
+### VmmTrackerCore
+
+トラッキングデータモデル、デシリアライザ、SDP圧縮コーデック、シグナリング関連ユーティリティ。
+Unity / WPF 等から参照可能な共通ライブラリ。
+
+- **ターゲット**: .NET Standard 2.1
+- **NuGet パッケージ**:
+  - [System.Text.Json](https://www.nuget.org/packages/System.Text.Json) 8.0.6 — JSON シリアライズ/デシリアライズ
+
+### VmmTrackerWebRtc
+
+SIPSorcery ベースの WebRTC DataChannel 受信と AES-GCM 復号の実装。
+VmmTrackerCore から分離されたライブラリで、コンソールアプリと WPF の両方から参照される。
+
+- **ターゲット**: .NET 8.0 (クラスライブラリ)
+- **NuGet パッケージ**:
+  - [SIPSorcery](https://www.nuget.org/packages/SIPSorcery) 10.0.3 — WebRTC (DataChannel, ICE, DTLS) の .NET 実装
+- **プロジェクト参照**: VmmTrackerCore
+
+### VmmTrackerReceiver
+
+コンソールベースのリファレンス受信アプリ。WebRTC シグナリング → 接続 → トラッキングデータ受信の一連フローを実装。
+
+- **ターゲット**: .NET 8.0 (コンソールアプリ)
+- **NuGet パッケージ**:
+  - [QRCoder](https://www.nuget.org/packages/QRCoder) 1.6.0 — QR コード画像の生成
+- **プロジェクト参照**: VmmTrackerCore, VmmTrackerWebRtc
+
+### VmmTrackerWpf
+
+WPF サンプルアプリ。QR コード表示 UI + シグナリング → WebRTC 接続 → トラッキングデータのリアルタイム表示。
+
+- **ターゲット**: .NET 8.0-windows (WPF)
+- **NuGet パッケージ**:
+  - [QRCoder](https://www.nuget.org/packages/QRCoder) 1.6.0 — QR コード画像の生成
+- **プロジェクト参照**: VmmTrackerCore, VmmTrackerWebRtc
+
+### VmmTrackerDataSender.Tests
+
+SdpCodec 等のユニットテスト。
+
+- **ターゲット**: .NET 8.0
+- **NuGet パッケージ**:
+  - [xunit](https://www.nuget.org/packages/xunit) 2.5.3 — テストフレームワーク
+  - [xunit.runner.visualstudio](https://www.nuget.org/packages/xunit.runner.visualstudio) 2.5.3
+  - [Microsoft.NET.Test.Sdk](https://www.nuget.org/packages/Microsoft.NET.Test.Sdk) 17.8.0
+  - [coverlet.collector](https://www.nuget.org/packages/coverlet.collector) 6.0.0
+- **プロジェクト参照**: VmmTrackerCore
+
+## ビルド
 
 ```bash
-dotnet build
+dotnet build dotnet/VmmTrackerDataSender.sln
 ```
 
-## Run
+## 実行
 
-### Compressed format (default, binary)
+### コンソールアプリ (自動シグナリング)
 
 ```bash
-dotnet run --project VmmTrackerReceiver
+dotnet run --project dotnet/VmmTrackerReceiver
 ```
 
-Or with explicit options:
+### WPF サンプル
 
 ```bash
-dotnet run --project VmmTrackerReceiver -- --port 8080 --format compressed
+dotnet run --project dotnet/VmmTrackerWpf
 ```
 
-### Readable format (JSON)
+### テスト
 
 ```bash
-dotnet run --project VmmTrackerReceiver -- --port 8080 --format readable
+dotnet test dotnet/VmmTrackerDataSender.sln
 ```
-
-## Command Line Options
-
-- `--port <number>`: WebSocket server port (default: 8080)
-- `--format <compressed|readable>`: Data format (default: compressed)
-
-## Usage
-
-1. Start the receiver application
-2. Note the WebSocket URL (e.g., `ws://192.168.1.100:8080`)
-3. Open the web application and enter this URL
-4. Start tracking on the web application
-5. Tracking data will be displayed in the console
-
-## Integration with Unity/WPF
-
-The `VmmTrackerCore` library is .NET Standard 2.1 compatible and can be referenced from:
-
-- **Unity 6.0** (or Unity 2021.2+)
-- **WPF (.NET Framework 4.7.2+)**
-- **WPF (.NET 6/7/8)**
-
-### Example Integration
-
-```csharp
-using VmmTrackerCore;
-
-// Create deserializer
-var deserializer = new CompressedDeserializer();
-
-// Create WebSocket server
-var server = new WebSocketServer(8080, deserializer);
-
-server.DataReceived += (data) =>
-{
-    // Use tracking data in your application
-    Debug.Log($"Head position: {data.HeadPose.PositionX}, {data.HeadPose.PositionY}, {data.HeadPose.PositionZ}");
-
-    // Apply blend shapes
-    for (int i = 0; i < data.BlendShapes.Length; i++)
-    {
-        float normalizedValue = data.BlendShapes[i] / 255.0f;
-        // Apply to your VRM model
-    }
-};
-
-server.Start();
-```
-
-## Data Formats
-
-### Compressed Format (Binary)
-
-80 bytes total:
-- Position: 12 bytes (3 x float32)
-- Rotation: 16 bytes (4 x float32, Quaternion)
-- BlendShapes: 52 bytes (52 x uint8)
-
-### Readable Format (JSON)
-
-```json
-{
-  "headPose": {
-    "px": 0.0, "py": 0.0, "pz": 0.0,
-    "rx": 0.0, "ry": 0.0, "rz": 0.0, "rw": 1.0
-  },
-  "blendShape": {
-    "eyeBlinkLeft": 128,
-    "eyeBlinkRight": 128,
-    ...
-  }
-}
-```
-
-## TODO
-
-- [ ] Add unit tests
-- [ ] Add XML documentation comments
-- [ ] Add logging framework integration
-- [ ] Add configuration file support
-- [ ] Consider adding HTTPS/WSS support for production use
