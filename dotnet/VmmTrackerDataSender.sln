@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VmmTrackerCore", "VmmTracke
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VmmTrackerDataSender.Tests", "VmmTrackerDataSender.Tests\VmmTrackerDataSender.Tests.csproj", "{00C407B1-ED15-4158-BE95-AACED05EBDE9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VmmTrackerWebRtc", "VmmTrackerWebRtc\VmmTrackerWebRtc.csproj", "{A961CF30-199A-4DC3-9CC6-91FB48AD293A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VmmTrackerWpf", "VmmTrackerWpf\VmmTrackerWpf.csproj", "{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +59,30 @@ Global
 		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Release|x64.Build.0 = Release|Any CPU
 		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Release|x86.ActiveCfg = Release|Any CPU
 		{00C407B1-ED15-4158-BE95-AACED05EBDE9}.Release|x86.Build.0 = Release|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Debug|x64.Build.0 = Debug|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Debug|x86.Build.0 = Debug|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Release|x64.ActiveCfg = Release|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Release|x64.Build.0 = Release|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Release|x86.ActiveCfg = Release|Any CPU
+		{A961CF30-199A-4DC3-9CC6-91FB48AD293A}.Release|x86.Build.0 = Release|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Debug|x64.Build.0 = Debug|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Debug|x86.Build.0 = Debug|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Release|x64.ActiveCfg = Release|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Release|x64.Build.0 = Release|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Release|x86.ActiveCfg = Release|Any CPU
+		{D99C7F9E-DEDD-4DAC-B0AD-F6AAED4C9399}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

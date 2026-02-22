@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using QRCoder;
 using VmmTrackerCore;
+using VmmTrackerWebRtc;
 
 namespace VmmTrackerReceiver;
 
@@ -226,6 +227,8 @@ class Program
 
     static void SetupCommonHandlers(WebRTCReceiver receiver)
     {
+        receiver.Log = Console.WriteLine;
+
         receiver.DataReceived += (data) =>
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Received tracking data:");

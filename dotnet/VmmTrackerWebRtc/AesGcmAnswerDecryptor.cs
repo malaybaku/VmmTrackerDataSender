@@ -2,7 +2,7 @@ using System;
 using System.Security.Cryptography;
 using VmmTrackerCore;
 
-namespace VmmTrackerReceiver;
+namespace VmmTrackerWebRtc;
 
 /// <summary>
 /// AES-128-GCM implementation of IAnswerDecryptor.

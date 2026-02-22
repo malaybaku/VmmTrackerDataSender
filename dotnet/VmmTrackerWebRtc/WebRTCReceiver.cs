@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using SIPSorcery.Net;
 using VmmTrackerCore;
 
-namespace VmmTrackerReceiver;
+namespace VmmTrackerWebRtc;
 
 /// <summary>
 /// WebRTC DataChannel receiver for tracking data
@@ -20,6 +20,12 @@ public class WebRTCReceiver : IDisposable
     // ICE gathering
     private readonly List<string> _collectedIceCandidates = new();
     private TaskCompletionSource<bool>? _iceGatheringTcs;
+
+    /// <summary>
+    /// Optional log action for diagnostic messages.
+    /// If null, log messages are silently discarded.
+    /// </summary>
+    public Action<string>? Log { get; set; }
 
     /// <summary>
     /// Event fired when tracking data is received
@@ -51,7 +57,7 @@ public class WebRTCReceiver : IDisposable
     /// </summary>
     public async Task InitializeAsOfferer()
     {
-        Console.WriteLine("[WebRTC] Initializing as offerer...");
+        Log?.Invoke("[WebRTC] Initializing as offerer...");
 
         try
         {
@@ -76,19 +82,19 @@ public class WebRTCReceiver : IDisposable
             offer.sdp = SanitizeSdp(offer.sdp);
             await _peerConnection.setLocalDescription(offer);
 
-            Console.WriteLine("[WebRTC] Offer created, waiting for ICE gathering...");
+            Log?.Invoke("[WebRTC] Offer created, waiting for ICE gathering...");
 
             await WaitForIceGathering();
 
             var compressed = SdpCodec.Encode(offer.sdp, true, _collectedIceCandidates.ToArray());
-            Console.WriteLine($"[WebRTC] Compressed offer ready, byte length: {compressed.Length}");
+            Log?.Invoke($"[WebRTC] Compressed offer ready, byte length: {compressed.Length}");
 
             CompressedSdpReady?.Invoke(compressed, true);
         }
         catch (Exception ex)
         {
             var error = $"Failed to initialize as offerer: {ex.Message}";
-            Console.WriteLine($"[WebRTC ERROR] {error}");
+            Log?.Invoke($"[WebRTC ERROR] {error}");
             ErrorOccurred?.Invoke(error);
             throw;
         }
@@ -99,13 +105,13 @@ public class WebRTCReceiver : IDisposable
     /// </summary>
     public async Task InitializeAsAnswerer(byte[] offerBytes)
     {
-        Console.WriteLine("[WebRTC] Initializing as answerer...");
+        Log?.Invoke("[WebRTC] Initializing as answerer...");
 
         try
         {
             // Decode compressed offer
             var (offerSdp, _) = SdpCodec.Decode(offerBytes);
-            Console.WriteLine("[WebRTC] Decoded offer SDP");
+            Log?.Invoke("[WebRTC] Decoded offer SDP");
 
             var config = new RTCConfiguration
             {
@@ -133,19 +139,19 @@ public class WebRTCReceiver : IDisposable
             answer.sdp = SanitizeSdp(answer.sdp);
             await _peerConnection.setLocalDescription(answer);
 
-            Console.WriteLine("[WebRTC] Answer created, waiting for ICE gathering...");
+            Log?.Invoke("[WebRTC] Answer created, waiting for ICE gathering...");
 
             await WaitForIceGathering();
 
             var compressed = SdpCodec.Encode(answer.sdp, false, _collectedIceCandidates.ToArray());
-            Console.WriteLine($"[WebRTC] Compressed answer ready, byte length: {compressed.Length}");
+            Log?.Invoke($"[WebRTC] Compressed answer ready, byte length: {compressed.Length}");
 
             CompressedSdpReady?.Invoke(compressed, false);
         }
         catch (Exception ex)
         {
             var error = $"Failed to initialize as answerer: {ex.Message}";
-            Console.WriteLine($"[WebRTC ERROR] {error}");
+            Log?.Invoke($"[WebRTC ERROR] {error}");
             ErrorOccurred?.Invoke(error);
             throw;
         }
@@ -162,7 +168,7 @@ public class WebRTCReceiver : IDisposable
         }
 
         var (answerSdp, _) = SdpCodec.Decode(answerBytes);
-        Console.WriteLine("[WebRTC] Decoded answer SDP");
+        Log?.Invoke("[WebRTC] Decoded answer SDP");
 
         var result = _peerConnection.setRemoteDescription(new RTCSessionDescriptionInit
         {
@@ -175,7 +181,7 @@ public class WebRTCReceiver : IDisposable
             throw new Exception($"Failed to set remote description: {result}");
         }
 
-        Console.WriteLine("[WebRTC] Remote answer set");
+        Log?.Invoke("[WebRTC] Remote answer set");
     }
 
     /// <summary>
@@ -194,12 +200,12 @@ public class WebRTCReceiver : IDisposable
         {
             if (candidate != null)
             {
-                Console.WriteLine($"[WebRTC] ICE candidate collected: {candidate.candidate}");
+                Log?.Invoke($"[WebRTC] ICE candidate collected: {candidate.candidate}");
                 _collectedIceCandidates.Add(candidate.candidate);
             }
             else
             {
-                Console.WriteLine("[WebRTC] ICE gathering completed (null candidate)");
+                Log?.Invoke("[WebRTC] ICE gathering completed (null candidate)");
                 _iceGatheringTcs?.TrySetResult(true);
             }
         };
@@ -207,20 +213,20 @@ public class WebRTCReceiver : IDisposable
         // Connection state change
         _peerConnection.onconnectionstatechange += (state) =>
         {
-            Console.WriteLine($"[WebRTC] Connection state: {state}");
+            Log?.Invoke($"[WebRTC] Connection state: {state}");
             ConnectionStateChanged?.Invoke(state);
         };
 
         // ICE connection state change
         _peerConnection.oniceconnectionstatechange += (state) =>
         {
-            Console.WriteLine($"[WebRTC] ICE connection state: {state}");
+            Log?.Invoke($"[WebRTC] ICE connection state: {state}");
         };
 
         // Data channel event (for answerer)
         _peerConnection.ondatachannel += (dc) =>
         {
-            Console.WriteLine("[WebRTC] Data channel received");
+            Log?.Invoke("[WebRTC] Data channel received");
             _dataChannel = dc;
             SetupDataChannelHandlers();
         };
@@ -238,7 +244,7 @@ public class WebRTCReceiver : IDisposable
 
         if (completed == timeoutTask)
         {
-            Console.WriteLine("[WebRTC] ICE gathering timed out, proceeding with collected candidates");
+            Log?.Invoke("[WebRTC] ICE gathering timed out, proceeding with collected candidates");
         }
     }
 
@@ -251,17 +257,17 @@ public class WebRTCReceiver : IDisposable
 
         _dataChannel.onopen += () =>
         {
-            Console.WriteLine("[WebRTC] Data channel opened");
+            Log?.Invoke("[WebRTC] Data channel opened");
         };
 
         _dataChannel.onclose += () =>
         {
-            Console.WriteLine("[WebRTC] Data channel closed");
+            Log?.Invoke("[WebRTC] Data channel closed");
         };
 
         _dataChannel.onerror += (error) =>
         {
-            Console.WriteLine($"[WebRTC ERROR] Data channel error: {error}");
+            Log?.Invoke($"[WebRTC ERROR] Data channel error: {error}");
             ErrorOccurred?.Invoke($"Data channel error: {error}");
         };
 
@@ -277,7 +283,7 @@ public class WebRTCReceiver : IDisposable
                 }
                 else
                 {
-                    Console.WriteLine("[WebRTC] Received empty message");
+                    Log?.Invoke("[WebRTC] Received empty message");
                     return;
                 }
 
@@ -286,7 +292,7 @@ public class WebRTCReceiver : IDisposable
             catch (Exception ex)
             {
                 var error = $"Failed to deserialize data: {ex.Message}";
-                Console.WriteLine($"[WebRTC ERROR] {error}");
+                Log?.Invoke($"[WebRTC ERROR] {error}");
                 ErrorOccurred?.Invoke(error);
             }
         };
@@ -316,7 +322,7 @@ public class WebRTCReceiver : IDisposable
 
         if (_peerConnection.connectionState == RTCPeerConnectionState.connected)
         {
-            Console.WriteLine("[WebRTC] Connection established successfully");
+            Log?.Invoke("[WebRTC] Connection established successfully");
         }
         else
         {
@@ -340,7 +346,7 @@ public class WebRTCReceiver : IDisposable
     /// </summary>
     public void Close()
     {
-        Console.WriteLine("[WebRTC] Closing connection...");
+        Log?.Invoke("[WebRTC] Closing connection...");
 
         _dataChannel?.close();
         _peerConnection?.close();
