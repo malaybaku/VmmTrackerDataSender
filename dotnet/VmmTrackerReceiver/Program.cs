@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using QRCoder;
 using VmmTrackerCore;
 
 namespace VmmTrackerReceiver;
@@ -14,7 +15,8 @@ class Program
 
         // Parse command line arguments
         string format = "compressed";
-        string role = "answerer"; // WebRTC role: offerer or answerer
+        string role = "offerer";
+        string signaling = "auto";
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -25,6 +27,10 @@ class Program
             else if (args[i] == "--role" && i + 1 < args.Length)
             {
                 role = args[i + 1].ToLowerInvariant();
+            }
+            else if (args[i] == "--signaling" && i + 1 < args.Length)
+            {
+                signaling = args[i + 1].ToLowerInvariant();
             }
         }
 
@@ -38,11 +44,19 @@ class Program
 
         Console.WriteLine($"Format: {format}");
         Console.WriteLine($"Role: {role}");
+        Console.WriteLine($"Signaling: {signaling}");
         Console.WriteLine();
 
         try
         {
-            await RunWebRTCMode(role, deserializer);
+            if (signaling == "auto" && role == "offerer")
+            {
+                await RunAutoSignaling(deserializer);
+            }
+            else
+            {
+                await RunManualSignaling(role, deserializer);
+            }
         }
         catch (Exception ex)
         {
@@ -53,25 +67,101 @@ class Program
         }
     }
 
-    static async Task RunWebRTCMode(string role, ITrackingDataDeserializer deserializer)
+    static async Task RunAutoSignaling(ITrackingDataDeserializer deserializer)
     {
         using var receiver = new WebRTCReceiver(deserializer);
+        SetupCommonHandlers(receiver);
 
-        receiver.DataReceived += (data) =>
+        // Set up cancellation
+        var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (sender, e) =>
         {
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Received tracking data:");
-            Console.WriteLine(data);
-            Console.WriteLine();
+            e.Cancel = true;
+            cts.Cancel();
         };
 
-        receiver.ErrorOccurred += (error) =>
+        // 1. Generate AES key and session token
+        var aesKey = SignalingCrypto.GenerateKey();
+        var token = SignalingCrypto.GenerateToken();
+
+        Console.WriteLine($"Session token: {token}");
+        Console.WriteLine();
+
+        // 2. Capture compressed offer via event
+        var offerTcs = new TaskCompletionSource<byte[]>();
+        receiver.CompressedSdpReady += (data, isOffer) =>
+        {
+            if (isOffer)
+            {
+                offerTcs.TrySetResult(data);
+            }
+        };
+
+        await receiver.InitializeAsOfferer();
+        var offerBytes = await offerTcs.Task;
+
+        // 3. Build URL
+        var url = SignalingUrl.BuildUrl(token, aesKey, offerBytes);
+
+        Console.WriteLine("=== Scan QR code or open the URL on mobile ===");
+        Console.WriteLine();
+        Console.WriteLine(url);
+        Console.WriteLine();
+
+        // 4. Display ASCII QR code
+        try
+        {
+            using var qrGenerator = new QRCodeGenerator();
+            var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.L);
+            var asciiQr = new AsciiQRCode(qrData);
+            var qrString = asciiQr.GetGraphic(1);
+            Console.WriteLine(qrString);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Warning] Could not generate QR code: {ex.Message}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Waiting for answer from mobile...");
+        Console.WriteLine($"(Polling every {SignalingConfig.PollIntervalMs / 1000}s, timeout {SignalingConfig.PollTimeoutMs / 1000}s)");
+        Console.WriteLine();
+
+        // 5. Poll for answer
+        using var apiClient = new SignalingApiClient();
+        string encryptedBase64;
+        try
+        {
+            encryptedBase64 = await apiClient.PollForAnswer(token, cts.Token);
+        }
+        catch (TimeoutException)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"[ERROR] {error}");
+            Console.WriteLine("Timed out waiting for answer from mobile.");
             Console.ResetColor();
-        };
+            return;
+        }
 
-        // Temporary: convert to base64 for console display (will be replaced by new UX)
+        Console.WriteLine("Answer received! Decrypting...");
+
+        // 6. Decrypt
+        var encryptedData = Convert.FromBase64String(encryptedBase64);
+        var answerBytes = SignalingCrypto.Decrypt(aesKey, encryptedData);
+
+        // 7. Set remote answer
+        receiver.SetRemoteAnswer(answerBytes);
+        Console.WriteLine("Remote answer set. Waiting for connection...");
+
+        // Wait for connection
+        await WaitAndReceive(receiver, cts);
+    }
+
+    static async Task RunManualSignaling(string role, ITrackingDataDeserializer deserializer)
+    {
+        using var receiver = new WebRTCReceiver(deserializer);
+        SetupCommonHandlers(receiver);
+
+        // Display compressed SDP as base64 in manual mode
         receiver.CompressedSdpReady += (data, isOffer) =>
         {
             var base64 = Convert.ToBase64String(data);
@@ -94,13 +184,11 @@ class Program
 
         if (role == "offerer")
         {
-            // PC generates offer
             await receiver.InitializeAsOfferer();
 
             Console.WriteLine();
             Console.WriteLine("Paste the compressed answer (base64, single line) from the remote peer:");
 
-            // Temporary: convert from base64 console input (will be replaced by new UX)
             string? answerBase64 = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(answerBase64))
             {
@@ -114,10 +202,8 @@ class Program
         }
         else if (role == "answerer")
         {
-            // PC receives offer from web
             Console.WriteLine("Paste the compressed offer (base64, single line) from the remote peer:");
 
-            // Temporary: convert from base64 console input (will be replaced by new UX)
             string? offerBase64 = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(offerBase64))
             {
@@ -136,7 +222,28 @@ class Program
             return;
         }
 
-        // Wait for connection
+        await WaitAndReceive(receiver, cts);
+    }
+
+    static void SetupCommonHandlers(WebRTCReceiver receiver)
+    {
+        receiver.DataReceived += (data) =>
+        {
+            Console.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] Received tracking data:");
+            Console.WriteLine(data);
+            Console.WriteLine();
+        };
+
+        receiver.ErrorOccurred += (error) =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[ERROR] {error}");
+            Console.ResetColor();
+        };
+    }
+
+    static async Task WaitAndReceive(WebRTCReceiver receiver, CancellationTokenSource cts)
+    {
         try
         {
             await receiver.WaitForConnection(cts.Token);
@@ -145,7 +252,6 @@ class Program
             Console.WriteLine("Receiving tracking data... Press Ctrl+C to stop.");
             Console.WriteLine();
 
-            // Keep running until Ctrl+C
             while (!cts.Token.IsCancellationRequested)
             {
                 await Task.Delay(100, cts.Token);

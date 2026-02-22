@@ -187,3 +187,26 @@ SDP圧縮 + QRコード/base64テキストによるシグナリングを実装�
 - QRコードのサイズは圧縮SDP次第。55-100byteならVersion 3-4で十分
 - .NET側のwebcamアクセスはプラットフォーム依存が出やすい。Windows前提でまず実装し、クロスプラットフォームは後回し
 - Phase 1で追加したSDP正規化（`normalizeSdp`）は圧縮SDP導入後も一部残す可能性あり（フォールバック時）
+
+---
+
+## 追加タスク
+
+### Phase 2-F: プライバシー・セキュリティ
+
+- [ ] **Task F-1**: SDP Answer のクライアントサイド暗号化
+  - PC が QR コードに AES 鍵を含めてモバイルに共有
+  - モバイルは Answer を鍵で暗号化してから PUT /session/{token} に送信
+  - PC は GET で取得した暗号文を復号
+  - Firebase 管理者が Firestore 上の SDP 生データにアクセスできない状態にする
+  - Web 側: Web Crypto API (AES-GCM)、.NET 側: System.Security.Cryptography.AesGcm
+  - バックエンド変更不要（暗号文を string として保存するだけ）
+
+- [ ] **Task F-2**: プライバシーポリシー（またはそれに準ずる文書）の作成・公開
+  - モバイルからのカメラアクセス、トラッキングデータ送信、Firebase 経由の SDP 中継について記載
+  - クライアントサイド暗号化により Firebase 側で SDP 内容を閲覧できない旨を明記
+  - GitHub Pages 上に公開（Web アプリ内からリンク）
+
+- [ ] **Task F-3**: プライバシーポリシー同意 UI
+  - モバイル Web アプリの接続ボタン付近にプライバシーポリシーへのリンクを配置
+  - PUT API 呼び出し前にユーザーの同意を得る UI 導線を設ける

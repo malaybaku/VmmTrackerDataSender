@@ -231,32 +231,13 @@
       <div id="preview-overlay"></div>
     </div>
     <div id="controls">
-      <!-- WebRTC settings -->
-      <div id="webrtc-settings">
-        <div class="control-row">
-          <select id="webrtc-format-select">
-            <option value="compressed">Compressed (Binary)</option>
-            <option value="readable">Readable (JSON)</option>
-          </select>
-          <button id="webrtc-init-offerer-btn">Initialize as Offerer</button>
-          <button id="webrtc-init-answerer-btn">Initialize as Answerer</button>
-        </div>
-        <div class="control-row">
-          <label for="webrtc-offer-sdp" style="color: #aaa; width: 100px;">Offer (base64):</label>
-          <textarea id="webrtc-offer-sdp" rows="3" style="flex: 1; font-family: monospace; font-size: 0.8rem;"></textarea>
-          <button id="webrtc-copy-offer-btn" style="width: 80px;">Copy</button>
-        </div>
-        <div class="control-row">
-          <label for="webrtc-answer-sdp" style="color: #aaa; width: 100px;">Answer (base64):</label>
-          <textarea id="webrtc-answer-sdp" rows="3" style="flex: 1; font-family: monospace; font-size: 0.8rem;"></textarea>
-          <button id="webrtc-set-answer-btn" style="width: 80px;">Set</button>
-        </div>
-        <div class="control-row">
-          <span class="status" id="webrtc-status" style="flex: 1;">Not initialized</span>
-        </div>
-      </div>
       <div class="control-row">
-        <label for="preview-mode-select" style="color: #aaa;">プレビューモード:</label>
+        <label style="color: #aaa;">Format:</label>
+        <select id="webrtc-format-select">
+          <option value="compressed">Compressed (Binary)</option>
+          <option value="readable">Readable (JSON)</option>
+        </select>
+        <label style="color: #aaa;">Preview:</label>
         <select id="preview-mode-select">
           <option value="status-data">表示なし</option>
           <option value="status-data-landmarks" selected>ランドマーク</option>
@@ -265,16 +246,23 @@
       </div>
       <div class="control-row">
         <button id="start-camera-btn">Start Camera</button>
-        <button id="start-video-btn">Start Video</button>
         <button id="stop-tracking-btn" disabled>Stop Tracking</button>
+        <span class="status" id="connection-status"></span>
         <span class="status" id="status">Ready</span>
       </div>
-      <input type="file" id="video-file-input" accept="video/*" style="display:none" />
     </div>
     <div class="footer">
       <a href="https://github.com/malaybaku/VmmTrackerDataSender" target="_blank" rel="noopener noreferrer">Source (GitHub)</a>
       <span style="margin: 0 0.5rem;">|</span>
       <a id="licenses-link">Licenses</a>
+    </div>
+  </div>
+
+  <!-- Connection Modal -->
+  <div id="connection-modal" class="modal">
+    <div class="modal-content" style="text-align: center;">
+      <p id="connection-modal-message" style="white-space: pre-line; line-height: 1.6;"></p>
+      <button id="connection-modal-close" style="margin-top: 1rem; display: none;">OK</button>
     </div>
   </div>
 
