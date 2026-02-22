@@ -7,6 +7,4 @@ public static class SignalingConfig
     public const int AesKeySize = 16;
     public const int AesIvSize = 12;
     public const int AesTagSize = 16;
-    public const int PollIntervalMs = 2000;
-    public const int PollTimeoutMs = 300000;
 }

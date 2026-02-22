@@ -17,51 +17,34 @@ public class SignalingApiClient : IDisposable
     }
 
     /// <summary>
-    /// Poll Firebase API for the answer.
-    /// Returns the answer string (base64 of encrypted data) when available.
-    /// Throws on timeout or cancellation.
+    /// Fetch the answer from Firebase API.
+    /// Returns the answer string (base64 of encrypted data) if available, or null if not yet posted.
     /// </summary>
-    public async Task<string> PollForAnswer(
+    public async Task<string?> GetAnswerAsync(
         string token,
-        CancellationToken cancellationToken = default,
-        int intervalMs = SignalingConfig.PollIntervalMs,
-        int timeoutMs = SignalingConfig.PollTimeoutMs)
+        CancellationToken cancellationToken = default)
     {
         var url = $"{SignalingConfig.ApiBaseUrl}/{Uri.EscapeDataString(token)}";
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
 
-        while (DateTime.UtcNow < deadline)
+        var response = await _httpClient.GetAsync(url, cancellationToken);
+
+        if (response.StatusCode != System.Net.HttpStatusCode.OK)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            try
-            {
-                var response = await _httpClient.GetAsync(url, cancellationToken);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.OK)
-                {
-                    var json = await response.Content.ReadAsStringAsync();
-                    using var doc = JsonDocument.Parse(json);
-                    if (doc.RootElement.TryGetProperty("answer", out var answerElement))
-                    {
-                        var answer = answerElement.GetString();
-                        if (!string.IsNullOrEmpty(answer))
-                        {
-                            return answer;
-                        }
-                    }
-                }
-                // 404 or no answer yet → continue polling
-            }
-            catch (HttpRequestException ex)
-            {
-                Console.WriteLine($"[Signaling] Poll request failed: {ex.Message}");
-            }
-
-            await Task.Delay(intervalMs, cancellationToken);
+            return null;
         }
 
-        throw new TimeoutException($"No answer received within {timeoutMs / 1000} seconds");
+        var json = await response.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.TryGetProperty("answer", out var answerElement))
+        {
+            var answer = answerElement.GetString();
+            if (!string.IsNullOrEmpty(answer))
+            {
+                return answer;
+            }
+        }
+
+        return null;
     }
 
     public void Dispose()

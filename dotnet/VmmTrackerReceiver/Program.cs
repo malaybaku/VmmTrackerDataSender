@@ -125,21 +125,17 @@ class Program
         }
 
         Console.WriteLine();
-        Console.WriteLine("Waiting for answer from mobile...");
-        Console.WriteLine($"(Polling every {SignalingConfig.PollIntervalMs / 1000}s, timeout {SignalingConfig.PollTimeoutMs / 1000}s)");
-        Console.WriteLine();
+        Console.WriteLine("Press Enter after the mobile has connected, to fetch the answer...");
 
-        // 5. Poll for answer
+        // 5. Wait for user input, then fetch answer
+        await Task.Run(() => Console.ReadLine(), cts.Token);
+
         using var apiClient = new SignalingApiClient();
-        string encryptedBase64;
-        try
-        {
-            encryptedBase64 = await apiClient.PollForAnswer(token, cts.Token);
-        }
-        catch (TimeoutException)
+        var encryptedBase64 = await apiClient.GetAnswerAsync(token, cts.Token);
+        if (encryptedBase64 == null)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("Timed out waiting for answer from mobile.");
+            Console.WriteLine("Answer not found. The mobile may not have connected yet.");
             Console.ResetColor();
             return;
         }

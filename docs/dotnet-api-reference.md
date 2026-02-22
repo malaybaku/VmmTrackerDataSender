@@ -150,20 +150,20 @@ public static class SignalingUrl
 
 ### SignalingApiClient
 
-Firebase バックエンド API をポーリングして Answer を取得する。
+Firebase バックエンド API から Answer を取得する。
 
 ```csharp
 public class SignalingApiClient : IDisposable
 {
-    // Answer が PUT されるまでポーリング。取得できたら暗号化された base64 文字列を返す
-    Task<string> PollForAnswer(
+    // Answer を1回取得する。未着なら null を返す
+    Task<string?> GetAnswerAsync(
         string token,
-        CancellationToken cancellationToken = default,
-        int intervalMs = 2000,   // ポーリング間隔
-        int timeoutMs = 300000   // タイムアウト (5分)
+        CancellationToken cancellationToken = default
     );
 }
 ```
+
+呼び出しタイミングはアプリケーション側が制御する（コンソールアプリではキー入力、WPF ではボタン押下やタイマー等）。
 
 ### SignalingConfig
 
@@ -177,8 +177,6 @@ public static class SignalingConfig
     const int AesKeySize = 16;
     const int AesIvSize = 12;
     const int AesTagSize = 16;
-    const int PollIntervalMs = 2000;
-    const int PollTimeoutMs = 300000;
 }
 ```
 
@@ -278,7 +276,7 @@ byte[] answerBytes = decryptor.Decrypt(aesKey, encryptedData);
 3. WebRTCReceiver.InitializeAsOfferer()  → CompressedSdpReady で offerBytes を取得
 4. SignalingUrl.BuildUrl(token, aesKey, offerBytes)  → QR コード用 URL
 5. QR コードを UI に表示 (PngByteQRCode 等)
-6. SignalingApiClient.PollForAnswer(token)  → encryptedBase64
+6. SignalingApiClient.GetAnswerAsync(token)  → encryptedBase64 (null なら未着)
 7. IAnswerDecryptor.Decrypt(aesKey, encryptedData)  → answerBytes
 8. WebRTCReceiver.SetRemoteAnswer(answerBytes)
 9. WebRTCReceiver.WaitForConnection()
@@ -289,7 +287,7 @@ byte[] answerBytes = decryptor.Decrypt(aesKey, encryptedData);
 
 | ステップ | WPF 側 | Unity 側 |
 |---|---|---|
-| 1-6 | シグナリング全般（鍵生成、QR表示、API ポーリング） | — |
+| 1-6 | シグナリング全般（鍵生成、QR表示、API から Answer 取得） | — |
 | 7 | `AesGcmAnswerDecryptor` で復号 | — |
 | 8-9 | WebRTC 接続確立 | — |
 | 10 | `TrackingData` を Unity に転送 | `TrackingData` を受け取って利用 |
