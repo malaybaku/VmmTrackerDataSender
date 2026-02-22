@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - VMM Tracker Data Sender</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1a1a1a;
+      color: #ddd;
+      line-height: 1.8;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: #fff;
+    }
+
+    h2 {
+      font-size: 1.1rem;
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+
+    p, li {
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+
+    ul {
+      padding-left: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .note-en {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: #2a2a2a;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 2rem;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>プライバシーポリシー</h1>
+
+    <p>本ポリシーは、VMM Tracker Data Sender（以下「本サービス」）におけるデータの取り扱いについて説明します。本サービスは、モバイル端末のカメラで顔トラッキングを行い、同一ネットワーク内のPCにトラッキングデータを送信する機能を提供します。</p>
+
+    <h2>1. 取得・処理するデータ</h2>
+    <ul>
+      <li><strong>カメラ映像:</strong> 顔トラッキングのためにモバイル端末のカメラにアクセスします。映像はデバイス内でのみ処理され、外部サーバーへの送信は行いません。</li>
+      <li><strong>トラッキングデータ:</strong> 顔の表情パラメータ（BlendShape）および頭部の姿勢データを、WebRTCによりPC端末へ直接送信します。この通信はサーバーを経由しません。</li>
+      <li><strong>シグナリング情報:</strong> PC端末との接続を確立するため、暗号化された接続情報をFirebaseサーバーを経由して中継します。</li>
+    </ul>
+
+    <h2>2. データの暗号化と保持</h2>
+    <p>シグナリング情報はクライアントサイドでAES-128-GCM暗号化を行ったうえでサーバーに送信されます。暗号鍵はPC・モバイル間でのみ共有され、サーバー管理者を含む第三者が内容を復号することはできません。</p>
+    <p>シグナリング情報は接続確立のためにのみ使用され、永続的な保存は行いません。</p>
+
+    <h2>3. 利用する第三者サービス</h2>
+    <ul>
+      <li><strong>GitHub Pages:</strong> 本サービスのWebページのホスティングに使用します。アクセス時にIPアドレス等の情報がGitHubにより記録される場合があります。詳細は<a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener noreferrer">GitHubのプライバシーポリシー</a>をご確認ください。</li>
+      <li><strong>Firebase (Google Cloud):</strong> シグナリング情報の一時的な中継に使用します。詳細は<a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener noreferrer">Firebaseのプライバシーポリシー</a>をご確認ください。</li>
+    </ul>
+
+    <h2>4. お問い合わせ</h2>
+    <p>本ポリシーに関するお問い合わせは、<a href="https://github.com/malaybaku/VmmTrackerDataSender/issues" target="_blank" rel="noopener noreferrer">GitHubリポジトリのIssue</a>にてお願いいたします。</p>
+
+    <div class="note-en">
+      <strong>Note for English speakers:</strong> This privacy policy is written in Japanese. By using this service, you agree to the privacy policy as stated in the Japanese text above.
+    </div>
+
+    <a class="back-link" href="./">← 戻る</a>
+  </div>
+</body>
+</html>
