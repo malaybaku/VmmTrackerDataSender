@@ -1,6 +1,12 @@
 # Claude Code
 .claude/settings.local.json
 
+# Related modules
+related_modules/
+
+# Draft / internal docs
+docs_ignored/
+
 # Test data (videos with faces)
 test-data/*.mp4
 test-data/*.webm
