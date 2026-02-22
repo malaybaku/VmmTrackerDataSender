@@ -24,8 +24,8 @@
 
 - **Phase 3-A (フォルダ構造の見直し)**: ✅ 完了 (4/4タスク)
 - **Phase 3-B (WPFサンプルアプリ)**: ✅ 完了 (6/6タスク)
-- **Phase 3-C (Unity開発環境)**: 🔄 進行中 (3/4タスク)
-- **Phase 3-D (Unityサンプル)**: ⬜ 未着手 (0/5タスク)
+- **Phase 3-C (Unity開発環境)**: ✅ 完了 (4/4タスク)
+- **Phase 3-D (Unityサンプル)**: 🔄 進行中 (4/5タスク) — D-1~D-4実装完了、D-5ユーザー動作確認待ち
 - **Phase 3-E (ドキュメント更新)**: ⬜ 未着手 (0/3タスク)
 
 ---
@@ -140,7 +140,7 @@ VmmTrackerDataSender/
   - Claude Code から Unity Editor を操作するための MCP サーバー導入手順を調査
   - ユーザーへの手動セットアップ依頼事項をまとめる
 
-- [ ] **C-4 [依頼]**: Unity 6 プロジェクトの作成と DLL/パッケージ配置
+- [x] **C-4 [依頼]**: Unity 6 プロジェクトの作成と DLL/パッケージ配置
   - Unity Hub で `unity/VmmTrackerUnitySample/` に 3D プロジェクト作成
   - C-1 の調査結果に基づき WebRTC パッケージ or DLL を配置
   - C-2 の調査結果に基づき VmmTrackerCore.dll を Assets/Plugins/ に配置
@@ -153,30 +153,30 @@ VmmTrackerDataSender/
 コンソールアプリ (Program.cs RunAutoSignaling) とほぼ同等のフローを Unity 上で実装する。
 QRコード生成のみ省略し、接続URLはテキスト表示（手動コピー）で代替。
 
-- [ ] **D-1 [実装]**: WebRTC接続クラスの実装
+- [x] **D-1 [実装]**: WebRTC接続クラスの実装
   - C-1 で選定した方式に基づく WebRTC DataChannel 受信の実装
   - com.unity.webrtc の場合: RTCPeerConnection / RTCDataChannel を使った Offer 生成・Answer 設定
   - SIPSorcery の場合: WebRTCReceiver の Unity 向けラッパーまたは移植
   - VmmTrackerCore の SdpCodec と連携した SDP 圧縮/復元
 
-- [ ] **D-2 [実装]**: シグナリングフローの実装
+- [x] **D-2 [実装]**: シグナリングフローの実装
   - AES鍵/トークン生成 → Offer生成 → URL構築 → UI表示
   - SignalingApiClient で Answer 取得 → 復号 → SetRemoteAnswer
   - AesGcm 復号は Unity で利用可能か要確認 (不可の場合は代替実装)
   - QRコード生成は省略、URLをテキストで表示しユーザーに手動コピーを促す
 
-- [ ] **D-3 [実装]**: サンプルUI (MonoBehaviour)
+- [x] **D-3 [実装]**: サンプルUI (MonoBehaviour)
   - Inspector で Compressed/Readable フォーマットを選択
   - 「接続開始」「Answer取得」ボタン (uGUI)
   - 接続URL表示テキスト、接続状態テキスト
   - トラッキングデータ表示 (HeadPose + BlendShape先頭数値 + 受信FPS)
 
-- [ ] **D-4 [実装]**: エラーハンドリングと終了処理
+- [x] **D-4 [実装]**: エラーハンドリングと終了処理
   - 接続失敗時のUI表示、OnDestroy での Dispose
   - メインスレッドへのディスパッチ (Unity メインスレッド制約への対応)
 
 - [ ] **D-5 [依頼]**: サンプルシーンの構成と動作確認
-  - Canvas + GameObject にスクリプトをアタッチ
+  - 空の GameObject に TrackerSampleUI スクリプトをアタッチ (UI は全てコードから生成される)
   - Play モードでモバイルとの E2E 接続テスト
 
 ---
