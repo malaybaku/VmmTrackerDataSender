@@ -7,6 +7,7 @@ import { TrackingStatus, PreviewMode } from './types';
 import type { HeadPose, EulerAngles } from './types';
 import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { formatFixedWidth } from './utils/math';
+import { t } from './i18n/messages';
 
 export class PreviewRenderer {
   private canvas: HTMLCanvasElement;
@@ -14,6 +15,7 @@ export class PreviewRenderer {
   private video: HTMLVideoElement;
   private ctx: CanvasRenderingContext2D;
   private currentMode: PreviewMode = PreviewMode.Landmarks;
+  private dataExpanded = false;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -29,6 +31,14 @@ export class PreviewRenderer {
       throw new Error('Failed to get 2D context from canvas');
     }
     this.ctx = ctx;
+
+    // Handle toggle clicks via event delegation
+    this.overlay.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-toggle-data]')) {
+        this.dataExpanded = !this.dataExpanded;
+      }
+    });
 
     // Set initial mode to configure display states
     this.setMode(this.currentMode);
@@ -96,29 +106,7 @@ export class PreviewRenderer {
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // Update overlay with status and data (same style as mode C)
-    const { icon, text, color } = this.getStatusInfo(status);
-
-    // Always show data section, use "-" if no tracking data
-    const dataHtml = this.formatDataHtml(headPose, euler, status);
-
-    this.overlay.innerHTML = `
-      <div style="
-        position: absolute;
-        top: 1rem;
-        left: 1rem;
-        background: rgba(40, 40, 40, 0.85);
-        padding: 1rem;
-        border-radius: 8px;
-        color: ${color};
-        max-width: 400px;
-      ">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 1.5rem;">${icon}</span>
-          <span style="font-weight: 600;">${text}</span>
-        </div>
-        ${dataHtml}
-      </div>
-    `;
+    this.updateOverlay(status, headPose, euler);
   }
 
   /**
@@ -146,29 +134,7 @@ export class PreviewRenderer {
     }
 
     // Update overlay with status and data (semi-transparent background)
-    const { icon, text, color } = this.getStatusInfo(status);
-
-    // Always show data section, use "-" if no tracking data
-    const dataHtml = this.formatDataHtml(headPose, euler, status);
-
-    this.overlay.innerHTML = `
-      <div style="
-        position: absolute;
-        top: 1rem;
-        left: 1rem;
-        background: rgba(40, 40, 40, 0.85);
-        padding: 1rem;
-        border-radius: 8px;
-        color: ${color};
-        max-width: 400px;
-      ">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 1.5rem;">${icon}</span>
-          <span style="font-weight: 600;">${text}</span>
-        </div>
-        ${dataHtml}
-      </div>
-    `;
+    this.updateOverlay(status, headPose, euler);
   }
 
   /**
@@ -195,29 +161,7 @@ export class PreviewRenderer {
     }
 
     // Video element is displayed directly, just update overlay with status and data
-    const { icon, text, color } = this.getStatusInfo(status);
-
-    // Always show data section, use "-" if no tracking data
-    const dataHtml = this.formatDataHtml(headPose, euler, status);
-
-    this.overlay.innerHTML = `
-      <div style="
-        position: absolute;
-        top: 1rem;
-        left: 1rem;
-        background: rgba(40, 40, 40, 0.85);
-        padding: 1rem;
-        border-radius: 8px;
-        color: ${color};
-        max-width: 400px;
-      ">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <span style="font-size: 1.5rem;">${icon}</span>
-          <span style="font-weight: 600;">${text}</span>
-        </div>
-        ${dataHtml}
-      </div>
-    `;
+    this.updateOverlay(status, headPose, euler);
   }
 
   /**
@@ -240,6 +184,39 @@ export class PreviewRenderer {
   }
 
   /**
+   * Update overlay with status and data panel
+   */
+  private updateOverlay(
+    status: TrackingStatus,
+    headPose: HeadPose | null,
+    euler: EulerAngles | null
+  ): void {
+    const { icon, iconColor, text, textColor } = this.getStatusInfo(status);
+    const dataHtml = this.dataExpanded ? this.formatDataHtml(headPose, euler, status) : '';
+    const toggleIcon = this.dataExpanded ? '▼' : '▶';
+
+    this.overlay.innerHTML = `
+      <div style="
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        background: rgba(40, 40, 40, 0.85);
+        padding: 1rem;
+        border-radius: 8px;
+        min-width: 200px;
+        max-width: 400px;
+      ">
+        <div data-toggle-data style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none;">
+          <span style="font-size: 1.5rem; color: ${iconColor};">${icon}</span>
+          <span style="font-weight: 600; color: ${textColor};">${text}</span>
+          <span style="font-size: 0.75rem; color: #888; margin-left: auto;">${toggleIcon}</span>
+        </div>
+        ${dataHtml}
+      </div>
+    `;
+  }
+
+  /**
    * Format data HTML for position and rotation
    * Shows "-" when tracking is not successful
    */
@@ -252,13 +229,13 @@ export class PreviewRenderer {
       return `
         <div style="margin-top: 1rem; font-size: 0.875rem; font-family: 'Courier New', monospace;">
           <div style="margin-bottom: 0.5rem;">
-            <strong>位置 (cm):</strong>
+            <strong>${t('data.position')}</strong>
             X: ${formatFixedWidth(headPose.px)},
             Y: ${formatFixedWidth(headPose.py)},
             Z: ${formatFixedWidth(headPose.pz)}
           </div>
           <div>
-            <strong>姿勢(deg):</strong>
+            <strong>${t('data.rotation')}</strong>
             x: ${formatFixedWidth(euler.pitch)},
             y: ${formatFixedWidth(euler.yaw)},
             z: ${formatFixedWidth(euler.roll)}
@@ -269,13 +246,13 @@ export class PreviewRenderer {
       return `
         <div style="margin-top: 1rem; font-size: 0.875rem; font-family: 'Courier New', monospace;">
           <div style="margin-bottom: 0.5rem;">
-            <strong>位置 (cm):</strong>
+            <strong>${t('data.position')}</strong>
             X: -,
             Y: -,
             Z: -
           </div>
           <div>
-            <strong>姿勢(deg):</strong>
+            <strong>${t('data.rotation')}</strong>
             x: -,
             y: -,
             z: -
@@ -288,16 +265,14 @@ export class PreviewRenderer {
   /**
    * Get status information (icon, text, color)
    */
-  private getStatusInfo(status: TrackingStatus): { icon: string; text: string; color: string } {
+  private getStatusInfo(status: TrackingStatus): { icon: string; iconColor: string; text: string; textColor: string } {
     switch (status) {
       case TrackingStatus.TrackingSuccess:
-        return { icon: '✅', text: 'トラッキング成功', color: '#28a745' };
+        return { icon: '✅', iconColor: '#28a745', text: t('tracking.success'), textColor: '#fff' };
       case TrackingStatus.TrackingNoFace:
-        return { icon: '⚠️', text: '処理中・顔未検出', color: '#ffc107' };
-      case TrackingStatus.NotTracking:
-        return { icon: '❌', text: 'トラッキング未実行', color: '#6c757d' };
+        return { icon: '—', iconColor: '#aaa', text: t('tracking.noFace'), textColor: '#aaa' };
       default:
-        return { icon: '❌', text: 'トラッキング未実行', color: '#6c757d' };
+        return { icon: '—', iconColor: '#aaa', text: t('tracking.noFace'), textColor: '#aaa' };
     }
   }
 }

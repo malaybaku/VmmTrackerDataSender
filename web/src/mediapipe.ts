@@ -117,7 +117,7 @@ export class MediaPipeManager {
 
     // Notify not tracking status
     if (this.onTrackingStatus) {
-      this.onTrackingStatus(TrackingStatus.NotTracking);
+      this.onTrackingStatus(TrackingStatus.TrackingNoFace);
     }
 
     console.log('[MediaPipe] Tracking stopped');

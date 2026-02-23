@@ -113,6 +113,19 @@ body {
   color: var(--color-text-muted);
 }
 
+.btn-restart {
+  margin-left: auto;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  background: var(--color-bg-input);
+  color: var(--color-text-muted);
+}
+
+.btn-restart:hover {
+  background: var(--color-btn-disabled);
+  color: var(--color-text-primary);
+}
+
 input, button, select {
   padding: 0.5rem;
   font-size: 1rem;
@@ -175,6 +188,38 @@ select {
 }
 
 .footer a:hover {
+  color: var(--color-text-muted);
+}
+
+.footer-sep {
+  margin: 0 0.5rem;
+}
+
+.lang-switch {
+  display: inline-flex;
+  margin-left: 0.75rem;
+  border: 1px solid var(--color-text-footer);
+  border-radius: 3px;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.lang-option {
+  padding: 0.1rem 0.4rem;
+  cursor: pointer;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--color-text-footer);
+  user-select: none;
+  line-height: 1.2;
+}
+
+.lang-option.active {
+  background: var(--color-text-footer);
+  color: var(--color-bg-footer);
+}
+
+.lang-option:not(.active):hover {
   color: var(--color-text-muted);
 }
 

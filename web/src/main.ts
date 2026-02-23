@@ -14,6 +14,7 @@ import { quaternionToEuler } from './utils/math';
 import { parseFragment } from './signaling-url';
 import { encryptAnswer } from './signaling-crypto';
 import { putAnswer } from './signaling-api';
+import { t, getLanguage, setLanguage } from './i18n/messages';
 
 // ============================================================================
 // UI Elements
@@ -24,6 +25,7 @@ const previewCanvas = document.getElementById('preview-canvas') as HTMLCanvasEle
 const previewOverlay = document.getElementById('preview-overlay') as HTMLDivElement;
 
 const previewModeSelect = document.getElementById('preview-mode-select') as HTMLSelectElement;
+const restartTrackingBtn = document.getElementById('restart-tracking-btn') as HTMLButtonElement;
 const connectionStatus = document.getElementById('connection-status') as HTMLSpanElement;
 
 // Connection modal elements
@@ -46,7 +48,7 @@ const previewRenderer = new PreviewRenderer(previewCanvas, previewOverlay, video
 // State Management for Preview
 // ============================================================================
 
-let currentTrackingStatus: TrackingStatus = TrackingStatus.NotTracking;
+let currentTrackingStatus: TrackingStatus = TrackingStatus.TrackingNoFace;
 let currentHeadPose: HeadPose | null = null;
 let currentEuler: EulerAngles | null = null;
 let currentLandmarks: NormalizedLandmark[] | null = null;
@@ -104,6 +106,9 @@ async function startCameraAndTracking(): Promise<void> {
     console.log('[Main] Camera tracking successfully started');
   } catch (err) {
     console.error('[Main] Failed to start camera tracking:', err);
+    if (err instanceof DOMException && err.name === 'NotAllowedError') {
+      alert(t('error.cameraNotAllowed'));
+    }
     videoSourceManager.stop();
   }
 }
@@ -152,20 +157,20 @@ webrtcManager.onConnectionStateChange = (state) => {
   console.log('[Main] WebRTC connection state:', state);
   connectionStatus.className = 'status';
   if (state === 'connected') {
-    connectionStatus.textContent = 'Connected';
+    connectionStatus.textContent = t('status.connected');
     connectionStatus.classList.add('connected');
   } else if (state === 'failed') {
-    connectionStatus.textContent = 'Connection failed';
+    connectionStatus.textContent = t('status.connectionFailed');
     connectionStatus.classList.add('error');
   } else {
-    connectionStatus.textContent = `Connection: ${state}`;
+    connectionStatus.textContent = t('status.connectionPrefix') + state;
   }
 };
 
 webrtcManager.onDataChannelStateChange = (state) => {
   console.log('[Main] WebRTC data channel state:', state);
   if (state === 'open') {
-    connectionStatus.textContent = 'Connected';
+    connectionStatus.textContent = t('status.connected');
     connectionStatus.className = 'status connected';
   }
 };
@@ -215,6 +220,18 @@ previewModeSelect.addEventListener('change', () => {
   updatePreview();
 });
 
+// Restart Tracking
+restartTrackingBtn.addEventListener('click', async () => {
+  restartTrackingBtn.disabled = true;
+  try {
+    mediapipeManager.stopTracking();
+    videoSourceManager.stop();
+    await startCameraAndTracking();
+  } finally {
+    restartTrackingBtn.disabled = false;
+  }
+});
+
 // ============================================================================
 // Auto-Signaling (URL fragment-based)
 // ============================================================================
@@ -225,7 +242,7 @@ async function tryAutoSignaling(): Promise<void> {
 
   const { token, aesKey, offerBytes } = parsed;
 
-  showConnectionModal('接続中...');
+  showConnectionModal(t('modal.connecting'));
 
   try {
     // Set up a promise to capture the compressed answer
@@ -254,12 +271,12 @@ async function tryAutoSignaling(): Promise<void> {
     const encryptedBase64 = btoa(binary);
 
     // Show consent UI and wait for user to tap the setup button
-    showConnectionModal('接続の準備ができました。', { showConsentUI: true });
+    showConnectionModal(t('modal.connectionReady'), { showConsentUI: true });
 
     await new Promise<void>((resolve, reject) => {
       connectionModalSetupCallback = async () => {
         try {
-          showConnectionModal('応答を送信中...');
+          showConnectionModal(t('modal.sendingAnswer'));
 
           // Send to Firebase
           await putAnswer(token, encryptedBase64);
@@ -279,13 +296,62 @@ async function tryAutoSignaling(): Promise<void> {
 
   } catch (err) {
     console.error('[AutoSignaling] Failed:', err);
-    const errorMessage = `接続に失敗しました: ${err instanceof Error ? err.message : String(err)}\n\nQRコードを再スキャンするか、閉じてローカルプレビューを使用してください。`;
+    const errorMessage = t('modal.connectionFailed', { error: err instanceof Error ? err.message : String(err) });
     showConnectionModal(errorMessage, { showCloseButton: true });
     connectionModalCloseCallback = () => {
       startCameraAndTracking();
     };
   }
 }
+
+// ============================================================================
+// i18n: Apply translated text to DOM elements
+// ============================================================================
+
+const previewLabel = document.querySelector('#controls .control-row label') as HTMLLabelElement;
+const footerLinks = document.querySelectorAll('.footer a');
+const consentMsg = document.querySelector('#connection-modal-consent p') as HTMLParagraphElement;
+const langSwitch = document.getElementById('lang-switch') as HTMLSpanElement;
+
+function applyI18n(): void {
+  // Header
+  (document.getElementById('app-title') as HTMLSpanElement).textContent = t('header.title');
+
+  // Preview controls
+  previewLabel.textContent = t('label.preview');
+  previewModeSelect.options[0]!.textContent = t('preview.dataOnly');
+  previewModeSelect.options[1]!.textContent = t('preview.landmarks');
+  previewModeSelect.options[2]!.textContent = t('preview.camera');
+  restartTrackingBtn.textContent = t('btn.restart');
+
+  // Footer links
+  footerLinks[0]!.textContent = t('footer.sourceGithub');
+  footerLinks[1]!.textContent = t('footer.licenses');
+  footerLinks[2]!.textContent = t('footer.privacyPolicy');
+
+  // Connection modal
+  connectionModalClose.textContent = t('btn.ok');
+  connectionModalSetupBtn.textContent = t('btn.setupConnection');
+  consentMsg.innerHTML = t('consent.message');
+
+  // Language switch active state
+  const lang = getLanguage();
+  langSwitch.querySelectorAll('.lang-option').forEach((el) => {
+    el.classList.toggle('active', (el as HTMLElement).dataset.lang === lang);
+  });
+}
+
+applyI18n();
+
+// Language switch click handler
+langSwitch.addEventListener('click', (e) => {
+  const target = (e.target as HTMLElement).closest('[data-lang]') as HTMLElement | null;
+  if (!target) return;
+  const lang = target.dataset.lang as 'ja' | 'en';
+  if (lang === getLanguage()) return;
+  setLanguage(lang);
+  applyI18n();
+});
 
 // ============================================================================
 // Initialization
@@ -297,7 +363,7 @@ if (window.location.hash && parseFragment(window.location.hash)) {
 } else {
   // No-fragment mode: show info dialog
   showConnectionModal(
-    'PCのQRコードをスキャンして接続してください。\nこのまま続けるとローカルプレビューのみ使用できます。',
+    t('modal.initialInfo'),
     { showCloseButton: true }
   );
   connectionModalCloseCallback = () => {

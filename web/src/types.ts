@@ -65,7 +65,6 @@ export enum PreviewMode {
  * Tracking status
  */
 export enum TrackingStatus {
-  NotTracking = 'not-tracking',
   TrackingNoFace = 'tracking-no-face',
   TrackingSuccess = 'tracking-success'
 }
