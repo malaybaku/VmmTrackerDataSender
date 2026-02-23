@@ -53,11 +53,6 @@ export interface TrackingData {
 export type SerializationFormat = 'readable' | 'compressed';
 
 /**
- * Status message type
- */
-export type StatusType = 'normal' | 'connected' | 'error';
-
-/**
  * Preview mode for video display
  */
 export enum PreviewMode {
