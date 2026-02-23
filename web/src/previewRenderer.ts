@@ -170,7 +170,7 @@ export class PreviewRenderer {
    * Draw 468 face landmarks on canvas
    */
   private drawLandmarks(landmarks: NormalizedLandmark[]): void {
-    this.ctx.fillStyle = '#66ccff';
+    this.ctx.fillStyle = '#35a16b';
     const radius = Math.max(this.canvas.height * 0.003, 1);
 
     for (const landmark of landmarks) {
