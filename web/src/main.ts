@@ -9,7 +9,6 @@ import type { NormalizedLandmark } from '@mediapipe/tasks-vision';
 import { VideoSourceManager } from './videoSource';
 import { MediaPipeManager } from './mediapipe';
 import { WebRTCManager } from './webrtc';
-import { UIManager } from './ui';
 import { PreviewRenderer } from './previewRenderer';
 import { quaternionToEuler } from './utils/math';
 import { parseFragment } from './signaling-url';
@@ -25,7 +24,6 @@ const previewCanvas = document.getElementById('preview-canvas') as HTMLCanvasEle
 const previewOverlay = document.getElementById('preview-overlay') as HTMLDivElement;
 
 const previewModeSelect = document.getElementById('preview-mode-select') as HTMLSelectElement;
-const statusSpan = document.getElementById('status') as HTMLSpanElement;
 const connectionStatus = document.getElementById('connection-status') as HTMLSpanElement;
 
 // Connection modal elements
@@ -42,7 +40,6 @@ const connectionModalSetupBtn = document.getElementById('connection-modal-setup-
 const videoSourceManager = new VideoSourceManager(video);
 const mediapipeManager = new MediaPipeManager();
 const webrtcManager = new WebRTCManager();
-const uiManager = new UIManager(statusSpan);
 const previewRenderer = new PreviewRenderer(previewCanvas, previewOverlay, video);
 
 // ============================================================================
@@ -98,20 +95,15 @@ connectionModalSetupBtn.addEventListener('click', () => {
 
 async function startCameraAndTracking(): Promise<void> {
   try {
-    uiManager.updateStatus('Starting camera...', 'normal');
+    console.log('[Main] Starting camera...');
     await videoSourceManager.startCamera();
 
-    uiManager.updateStatus('Starting tracking...', 'normal');
+    console.log('[Main] Starting tracking...');
     await mediapipeManager.startTracking(video);
 
-    uiManager.updateStatus('Camera tracking started', 'connected');
     console.log('[Main] Camera tracking successfully started');
   } catch (err) {
     console.error('[Main] Failed to start camera tracking:', err);
-    uiManager.updateStatus(
-      `Failed to start camera: ${err instanceof Error ? err.message : String(err)}`,
-      'error'
-    );
     videoSourceManager.stop();
   }
 }
@@ -127,12 +119,11 @@ videoSourceManager.onStateChange = () => {
 
 // MediaPipe Events
 mediapipeManager.onInitialized = () => {
-  uiManager.updateStatus('MediaPipe loaded successfully', 'normal');
+  console.log('[Main] MediaPipe loaded successfully');
 };
 
 mediapipeManager.onError = (error) => {
   console.error('[Main] MediaPipe error:', error);
-  uiManager.updateStatus('Failed to load MediaPipe', 'error');
 };
 
 mediapipeManager.onTrackingData = (data) => {
@@ -174,9 +165,8 @@ webrtcManager.onConnectionStateChange = (state) => {
 webrtcManager.onDataChannelStateChange = (state) => {
   console.log('[Main] WebRTC data channel state:', state);
   if (state === 'open') {
-    uiManager.updateStatus('DataChannel open', 'connected');
-  } else if (state === 'closed') {
-    uiManager.updateStatus('DataChannel closed', 'normal');
+    connectionStatus.textContent = 'Connected';
+    connectionStatus.className = 'status connected';
   }
 };
 
@@ -186,7 +176,6 @@ webrtcManager.onCompressedSdpReady = (data, type) => {
 
 webrtcManager.onError = (error) => {
   console.error('[Main] WebRTC error:', error);
-  uiManager.updateStatus(`WebRTC error: ${error.message}`, 'error');
 };
 
 // ============================================================================
