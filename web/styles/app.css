@@ -120,8 +120,9 @@ body {
   position: absolute;
   bottom: 1rem;
   left: 1rem;
+  right: 1rem;
   display: flex;
-  gap: 0.5rem;
+  justify-content: space-between;
   align-items: center;
   z-index: 10;
 }
@@ -345,4 +346,11 @@ select {
   max-height: 80vh;
   overflow-y: auto;
   position: relative;
+}
+
+/* Responsive: hide footer on mobile, rely on drawer */
+@media (max-width: 768px) {
+  .footer {
+    display: none;
+  }
 }
