@@ -170,7 +170,8 @@ export class PreviewRenderer {
    * Draw 468 face landmarks on canvas
    */
   private drawLandmarks(landmarks: NormalizedLandmark[]): void {
-    this.ctx.fillStyle = '#00ff00';
+    this.ctx.fillStyle = '#66ccff';
+    const radius = Math.max(this.canvas.height * 0.003, 1);
 
     for (const landmark of landmarks) {
       // Convert normalized coordinates to canvas coordinates
@@ -178,9 +179,9 @@ export class PreviewRenderer {
       const x = (1 - landmark.x) * this.canvas.width;
       const y = landmark.y * this.canvas.height;
 
-      // Draw small circle for each landmark
+      // Draw circle for each landmark
       this.ctx.beginPath();
-      this.ctx.arc(x, y, 1, 0, 2 * Math.PI);
+      this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
       this.ctx.fill();
     }
   }
