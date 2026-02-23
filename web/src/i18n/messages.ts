@@ -12,7 +12,7 @@ const messages = {
   'preview.dataOnly': { ja: '表示なし', en: 'Data only' },
   'preview.landmarks': { ja: 'ランドマーク', en: 'Landmarks' },
   'preview.camera': { ja: '映像', en: 'Camera' },
-  'btn.restart': { ja: '再開', en: 'Restart' },
+  'btn.restart': { ja: 'カメラを再起動', en: 'Restart Camera' },
 
   // Footer
   'footer.sourceGithub': { ja: 'Source (GitHub)', en: 'Source (GitHub)' },
@@ -20,6 +20,7 @@ const messages = {
   'footer.privacyPolicy': { ja: 'Privacy Policy', en: 'Privacy Policy' },
 
   // Connection status
+  'status.noQr': { ja: 'QRコードから開いてください', en: 'Open via QR code' },
   'status.connected': { ja: '接続済み', en: 'Connected' },
   'status.connectionFailed': { ja: '接続失敗', en: 'Connection failed' },
   'status.connectionPrefix': { ja: '接続: ', en: 'Connection: ' },

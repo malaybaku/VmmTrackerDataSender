@@ -1,7 +1,7 @@
 /* Main application styles (index.html) */
 
 :root {
-  --color-bg-video: #1e1e1e;
+  --color-bg-video: #383838;
   --color-bg-header: #2a2a2a;
   --color-bg-controls: #2a2a2a;
   --color-bg-footer: #222;
@@ -90,40 +90,47 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
   display: none;
 }
 
 #controls {
-  padding: 1rem;
-  background: var(--color-bg-controls);
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-.control-row {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  z-index: 10;
 }
 
-.control-row label {
+.control-panel {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  background: rgba(40, 40, 40, 0.85);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+}
+
+.control-panel label {
   color: var(--color-text-muted);
+  font-size: 0.875rem;
 }
 
 .btn-restart {
-  margin-left: auto;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.875rem;
-  background: var(--color-bg-input);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  background: rgba(40, 40, 40, 0.85);
   color: var(--color-text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
 }
 
 .btn-restart:hover {
-  background: var(--color-btn-disabled);
+  background: rgba(60, 60, 60, 0.9);
   color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 input, button, select {

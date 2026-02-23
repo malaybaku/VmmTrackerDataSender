@@ -32,10 +32,12 @@ export class PreviewRenderer {
     }
     this.ctx = ctx;
 
-    // Handle toggle clicks via event delegation
-    this.overlay.addEventListener('click', (e) => {
+    // Handle toggle via pointerdown (not click, because innerHTML replacement
+    // every frame destroys DOM nodes between mousedown and mouseup, preventing click from firing)
+    this.overlay.addEventListener('pointerdown', (e) => {
       const target = e.target as HTMLElement;
       if (target.closest('[data-toggle-data]')) {
+        e.preventDefault();
         this.dataExpanded = !this.dataExpanded;
       }
     });
@@ -102,7 +104,7 @@ export class PreviewRenderer {
     euler: EulerAngles | null
   ): void {
     // Clear canvas with dark background (slightly lighter than pure black)
-    this.ctx.fillStyle = '#0f0f0f';
+    this.ctx.fillStyle = '#383838';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // Update overlay with status and data (same style as mode C)
@@ -125,7 +127,7 @@ export class PreviewRenderer {
     }
 
     // Clear canvas with dark background (slightly lighter than pure black, do NOT draw video)
-    this.ctx.fillStyle = '#0f0f0f';
+    this.ctx.fillStyle = '#383838';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // Draw landmarks if available
@@ -191,7 +193,7 @@ export class PreviewRenderer {
     headPose: HeadPose | null,
     euler: EulerAngles | null
   ): void {
-    const { icon, iconColor, text, textColor } = this.getStatusInfo(status);
+    const { text, opacity } = this.getStatusInfo(status);
     const dataHtml = this.dataExpanded ? this.formatDataHtml(headPose, euler, status) : '';
     const toggleIcon = this.dataExpanded ? '▼' : '▶';
 
@@ -201,14 +203,14 @@ export class PreviewRenderer {
         top: 1rem;
         left: 1rem;
         background: rgba(40, 40, 40, 0.85);
-        padding: 1rem;
+        padding: 0.5rem 0.75rem;
         border-radius: 8px;
         min-width: 200px;
         max-width: 400px;
       ">
-        <div data-toggle-data style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none;">
-          <span style="font-size: 1.5rem; color: ${iconColor};">${icon}</span>
-          <span style="font-weight: 600; color: ${textColor};">${text}</span>
+        <div data-toggle-data style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none; opacity: ${opacity};">
+          <span style="font-size: 1.5rem;">✅</span>
+          <span style="font-weight: 600; color: #fff;">${text}</span>
           <span style="font-size: 0.75rem; color: #888; margin-left: auto;">${toggleIcon}</span>
         </div>
         ${dataHtml}
@@ -227,7 +229,7 @@ export class PreviewRenderer {
   ): string {
     if (headPose && euler && status === TrackingStatus.TrackingSuccess) {
       return `
-        <div style="margin-top: 1rem; font-size: 0.875rem; font-family: 'Courier New', monospace;">
+        <div style="margin-top: 0.5rem; font-size: 0.875rem; font-family: 'Courier New', monospace;">
           <div style="margin-bottom: 0.5rem;">
             <strong>${t('data.position')}</strong>
             X: ${formatFixedWidth(headPose.px)},
@@ -243,19 +245,20 @@ export class PreviewRenderer {
         </div>
       `;
     } else {
+      const placeholder = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-';
       return `
-        <div style="margin-top: 1rem; font-size: 0.875rem; font-family: 'Courier New', monospace;">
+        <div style="margin-top: 0.5rem; font-size: 0.875rem; font-family: 'Courier New', monospace;">
           <div style="margin-bottom: 0.5rem;">
             <strong>${t('data.position')}</strong>
-            X: -,
-            Y: -,
-            Z: -
+            X: ${placeholder},
+            Y: ${placeholder},
+            Z: ${placeholder}
           </div>
           <div>
             <strong>${t('data.rotation')}</strong>
-            x: -,
-            y: -,
-            z: -
+            x: ${placeholder},
+            y: ${placeholder},
+            z: ${placeholder}
           </div>
         </div>
       `;
@@ -265,14 +268,14 @@ export class PreviewRenderer {
   /**
    * Get status information (icon, text, color)
    */
-  private getStatusInfo(status: TrackingStatus): { icon: string; iconColor: string; text: string; textColor: string } {
+  private getStatusInfo(status: TrackingStatus): { text: string; opacity: number } {
     switch (status) {
       case TrackingStatus.TrackingSuccess:
-        return { icon: '✅', iconColor: '#28a745', text: t('tracking.success'), textColor: '#fff' };
+        return { text: t('tracking.success'), opacity: 1.0 };
       case TrackingStatus.TrackingNoFace:
-        return { icon: '—', iconColor: '#aaa', text: t('tracking.noFace'), textColor: '#aaa' };
+        return { text: t('tracking.noFace'), opacity: 0.5 };
       default:
-        return { icon: '—', iconColor: '#aaa', text: t('tracking.noFace'), textColor: '#aaa' };
+        return { text: t('tracking.noFace'), opacity: 0.5 };
     }
   }
 }

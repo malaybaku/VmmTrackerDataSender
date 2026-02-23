@@ -198,10 +198,7 @@ function updatePreview(): void {
 
 function startPreviewAnimationLoop(): void {
   function animate(): void {
-    const mode = previewRenderer.getMode();
-    if (mode === PreviewMode.Landmarks || mode === PreviewMode.Camera) {
-      updatePreview();
-    }
+    updatePreview();
     requestAnimationFrame(animate);
   }
   animate();
@@ -308,14 +305,21 @@ async function tryAutoSignaling(): Promise<void> {
 // i18n: Apply translated text to DOM elements
 // ============================================================================
 
-const previewLabel = document.querySelector('#controls .control-row label') as HTMLLabelElement;
+const previewLabel = document.querySelector('#controls .control-panel label') as HTMLLabelElement;
 const footerLinks = document.querySelectorAll('.footer a');
 const consentMsg = document.querySelector('#connection-modal-consent p') as HTMLParagraphElement;
 const langSwitch = document.getElementById('lang-switch') as HTMLSpanElement;
 
+let isNoQrMode = false;
+
 function applyI18n(): void {
   // Header
   (document.getElementById('app-title') as HTMLSpanElement).textContent = t('header.title');
+
+  // Update no-QR header hint if applicable
+  if (isNoQrMode && !connectionStatus.classList.contains('connected')) {
+    connectionStatus.textContent = t('status.noQr');
+  }
 
   // Preview controls
   previewLabel.textContent = t('label.preview');
@@ -361,7 +365,11 @@ if (window.location.hash && parseFragment(window.location.hash)) {
   // Auto mode: fragment present
   tryAutoSignaling();
 } else {
-  // No-fragment mode: show info dialog
+  // No-fragment mode: show info dialog and persist header hint
+  isNoQrMode = true;
+  connectionStatus.textContent = t('status.noQr');
+  connectionStatus.className = 'status';
+
   showConnectionModal(
     t('modal.initialInfo'),
     { showCloseButton: true }

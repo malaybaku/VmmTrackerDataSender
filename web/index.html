@@ -10,22 +10,22 @@
 <body>
   <div id="app">
     <header id="app-header">
-      <span id="app-title">VMM Tracker</span>
       <span class="status" id="connection-status"></span>
+      <span id="app-title">VMM Tracker</span>
     </header>
     <div id="video-container">
       <video id="video" autoplay playsinline></video>
       <canvas id="preview-canvas"></canvas>
       <div id="preview-overlay"></div>
-    </div>
-    <div id="controls">
-      <div class="control-row">
-        <label>Preview:</label>
-        <select id="preview-mode-select">
-          <option value="data-only">表示なし</option>
-          <option value="landmarks" selected>ランドマーク</option>
-          <option value="camera">映像</option>
-        </select>
+      <div id="controls">
+        <div class="control-panel">
+          <label>Preview:</label>
+          <select id="preview-mode-select">
+            <option value="data-only">表示なし</option>
+            <option value="landmarks" selected>ランドマーク</option>
+            <option value="camera">映像</option>
+          </select>
+        </div>
         <button id="restart-tracking-btn" class="btn-restart">再開</button>
       </div>
     </div>
