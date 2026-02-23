@@ -28,6 +28,12 @@ const previewModeSelect = document.getElementById('preview-mode-select') as HTML
 const restartTrackingBtn = document.getElementById('restart-tracking-btn') as HTMLButtonElement;
 const connectionStatus = document.getElementById('connection-status') as HTMLSpanElement;
 
+// Drawer elements
+const drawerToggle = document.getElementById('drawer-toggle') as HTMLButtonElement;
+const drawerBackdrop = document.getElementById('drawer-backdrop') as HTMLDivElement;
+const drawer = document.getElementById('drawer') as HTMLElement;
+const drawerLangSwitch = document.getElementById('drawer-lang-switch') as HTMLSpanElement;
+
 // Connection modal elements
 const connectionModal = document.getElementById('connection-modal') as HTMLDivElement;
 const connectionModalMessage = document.getElementById('connection-modal-message') as HTMLParagraphElement;
@@ -333,29 +339,66 @@ function applyI18n(): void {
   footerLinks[1]!.textContent = t('footer.licenses');
   footerLinks[2]!.textContent = t('footer.privacyPolicy');
 
+  // Drawer links
+  (document.getElementById('drawer-link-github') as HTMLAnchorElement).textContent = t('footer.sourceGithub');
+  (document.getElementById('drawer-link-licenses') as HTMLAnchorElement).textContent = t('footer.licenses');
+  (document.getElementById('drawer-link-privacy') as HTMLAnchorElement).textContent = t('footer.privacyPolicy');
+
   // Connection modal
   connectionModalClose.textContent = t('btn.ok');
   connectionModalSetupBtn.textContent = t('btn.setupConnection');
   consentMsg.innerHTML = t('consent.message');
 
-  // Language switch active state
+  // Language switch active state (footer + drawer)
   const lang = getLanguage();
-  langSwitch.querySelectorAll('.lang-option').forEach((el) => {
+  document.querySelectorAll('.lang-switch .lang-option').forEach((el) => {
     el.classList.toggle('active', (el as HTMLElement).dataset.lang === lang);
   });
 }
 
 applyI18n();
 
-// Language switch click handler
-langSwitch.addEventListener('click', (e) => {
+// ============================================================================
+// Drawer
+// ============================================================================
+
+function openDrawer(): void {
+  drawer.classList.add('open');
+  drawerBackdrop.classList.add('open');
+}
+
+function closeDrawer(): void {
+  drawer.classList.remove('open');
+  drawerBackdrop.classList.remove('open');
+}
+
+drawerToggle.addEventListener('click', () => {
+  if (drawer.classList.contains('open')) {
+    closeDrawer();
+  } else {
+    openDrawer();
+  }
+});
+
+drawerBackdrop.addEventListener('click', () => {
+  closeDrawer();
+});
+
+// ============================================================================
+// Language Switch (shared handler for footer and drawer)
+// ============================================================================
+
+function handleLangSwitch(e: Event): void {
   const target = (e.target as HTMLElement).closest('[data-lang]') as HTMLElement | null;
   if (!target) return;
   const lang = target.dataset.lang as 'ja' | 'en';
   if (lang === getLanguage()) return;
   setLanguage(lang);
   applyI18n();
-});
+}
+
+langSwitch.addEventListener('click', handleLangSwitch);
+drawerLangSwitch.addEventListener('click', handleLangSwitch);
 
 // ============================================================================
 // Initialization

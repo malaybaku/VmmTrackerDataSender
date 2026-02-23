@@ -42,10 +42,37 @@ body {
   flex-shrink: 0;
 }
 
+.drawer-toggle {
+  background: none;
+  border: none;
+  padding: 0.4rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.drawer-toggle:hover {
+  background: none;
+}
+
+.drawer-toggle-bar {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--color-text-muted);
+  border-radius: 1px;
+}
+
 #app-title {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-text-muted);
+}
+
+.drawer-title {
+  padding: 0.5rem 0.5rem 0.25rem;
 }
 
 #video-container {
@@ -60,19 +87,15 @@ body {
 }
 
 #video {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   transform: scaleX(-1);
 }
 
 #preview-canvas {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   display: none;
 }
@@ -228,6 +251,73 @@ select {
 
 .lang-option:not(.active):hover {
   color: var(--color-text-muted);
+}
+
+/* Drawer */
+.drawer-backdrop {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 900;
+}
+
+.drawer-backdrop.open {
+  display: block;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 250px;
+  max-width: 80vw;
+  height: 100%;
+  background: var(--color-bg-header);
+  z-index: 910;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+}
+
+.drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-content {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 1rem;
+}
+
+.drawer-link {
+  display: block;
+  padding: 0.75rem 0.5rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.drawer-link:hover {
+  color: var(--color-text-primary);
+}
+
+.drawer-divider {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 0.5rem 0;
+}
+
+#drawer-lang-switch {
+  align-self: flex-start;
+  margin-left: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+#drawer-lang-switch .lang-option {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.75rem;
 }
 
 .modal {

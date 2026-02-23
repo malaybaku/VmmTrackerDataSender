@@ -11,7 +11,11 @@
   <div id="app">
     <header id="app-header">
       <span class="status" id="connection-status"></span>
-      <span id="app-title">VMM Tracker</span>
+      <button id="drawer-toggle" class="drawer-toggle" aria-label="Menu">
+        <span class="drawer-toggle-bar"></span>
+        <span class="drawer-toggle-bar"></span>
+        <span class="drawer-toggle-bar"></span>
+      </button>
     </header>
     <div id="video-container">
       <video id="video" autoplay playsinline></video>
@@ -41,6 +45,22 @@
       </span>
     </div>
   </div>
+
+  <div id="drawer-backdrop" class="drawer-backdrop"></div>
+  <nav id="drawer" class="drawer">
+    <div class="drawer-content">
+      <span id="app-title" class="drawer-title">VMM Tracker</span>
+      <div class="drawer-divider"></div>
+      <a href="https://github.com/malaybaku/VmmTrackerDataSender" target="_blank" rel="noopener noreferrer" class="drawer-link" id="drawer-link-github">Source (GitHub)</a>
+      <a href="licenses.html" target="_blank" rel="noopener noreferrer" class="drawer-link" id="drawer-link-licenses">Licenses</a>
+      <a href="privacy-policy.html" target="_blank" rel="noopener noreferrer" class="drawer-link" id="drawer-link-privacy">Privacy Policy</a>
+      <div class="drawer-divider"></div>
+      <span class="lang-switch" id="drawer-lang-switch">
+        <span class="lang-option active" data-lang="ja">JA</span>
+        <span class="lang-option" data-lang="en">EN</span>
+      </span>
+    </div>
+  </nav>
 
   <!-- Connection Modal -->
   <div id="connection-modal" class="modal">
